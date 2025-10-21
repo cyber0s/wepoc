@@ -66,9 +66,7 @@
 
 - <img src="./assets/image-20251021154518940.png" alt="结果分析" width="600"/>
 
-- <img src="./assets/image-20251021154143547.png" alt="结果分析详情" width="600"/>
 
-- <img src="./assets/image-20251021154345139.png" alt="漏洞详情" width="600"/>
 
 - <img src="./assets/image-20251021154628346.png" alt="配置管理详情" width="600"/>
 
@@ -126,11 +124,8 @@
    - 访问 [Releases](https://github.com/cyber0s/wepoc/releases) 页面
    - 选择对应操作系统的安装包
 
-2. 🔧 **安装应用**
-   - Windows: 运行 `.exe` 安装程序
-   - macOS: 拖拽到应用程序文件夹
-   - Linux: 解压并运行可执行文件
 **star 过10发windows版本！！！🙏**
+
 ### 🎮 首次使用
 
 <div align="">
@@ -210,13 +205,6 @@ graph LR
 <img width="2560" height="1592" alt="image" src="https://github.com/user-attachments/assets/33bf4a22-6919-4eb7-98f5-658802c41b1c" />
 <img width="2560" height="1592" alt="image" src="https://github.com/user-attachments/assets/4beb6eba-7ee1-43db-9319-d8c1100c3a70" />
 
-### 🏗️ 技术架构
-
-<div align="center">
-
-#### 🛠️ 技术栈
-
-</div>
 
 
 
