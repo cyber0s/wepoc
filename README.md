@@ -25,16 +25,9 @@
 
 **wepoc** 是一个专为安全研究人员和渗透测试工程师设计的现代化漏洞扫描工具。
 
-基于强大的 [Nuclei](https://github.com/projectdiscovery/nuclei) 扫描引擎，通过友好的图形界面让漏洞扫描变得更加简单高效。
+基于强大的 [Nuclei](https://github.com/projectdiscovery/nuclei) 扫描引擎，通过图形界面让漏洞扫描变得更加简单高效。
 
 </div>
-
-### 🎯 设计理念
-
-- **🎨 现代化界面** - 基于 React 18 + Ant Design 的现代化 UI
-- **⚡ 高性能扫描** - 多任务并发，异步处理，任务间互不影响
-- **🔧 易于使用** - 图形化界面，降低使用门槛
-- **📊 详细分析** - 完整的扫描结果分析和报告
 
 ## ✨ 功能特性
 
@@ -156,18 +149,25 @@
 - 🚀 运行 wepoc 应用程序
 - 📜 阅读并同意法律协议
 - ⚙️ 配置 Nuclei 路径
+<img width="2560" height="1592" alt="image" src="https://github.com/user-attachments/assets/8b29cb30-d326-44ad-b917-b3c16c912267" />
+<img width="2560" height="1592" alt="image" src="https://github.com/user-attachments/assets/6d23499c-b86a-4b7f-ac91-6f9f628f5ca5" />
+
 
 ### 2️⃣ 导入模板
 
 - 📁 导入 Nuclei 模板库
 - 🔍 选择自定义模板
 - ✅ 验证模板有效性
+<img width="2560" height="1592" alt="image" src="https://github.com/user-attachments/assets/e770d7af-24d4-4f97-90d0-7699dd9e38d7" />
+<img width="2560" height="1592" alt="image" src="https://github.com/user-attachments/assets/8c65ac3d-71bb-42ec-a20a-ea746b6a9b40" />
 
 ### 3️⃣ 开始扫描
 
 - 🎯 创建扫描任务
 - 📊 实时监控进度
 - 🔍 查看扫描结果
+<img width="2560" height="1592" alt="image" src="https://github.com/user-attachments/assets/4af2446a-375a-40fb-bf8c-4beec6b63bb6" />
+<img width="2560" height="1592" alt="image" src="https://github.com/user-attachments/assets/06bf47a7-b936-4143-bfd1-43c8b9d385c3" />
 
 ### 🎯 创建扫描任务
 
@@ -191,12 +191,14 @@ graph LR
 - ✅ 在模板管理页面选择 POC
 - ✅ 支持多选和批量操作
 - ✅ 按严重等级筛选
+<img width="2560" height="1592" alt="image" src="https://github.com/user-attachments/assets/89d1bac4-df89-4df0-bbe1-dd50f760192e" />
 
 ### 🎯 设置目标
 
 - ✅ 输入目标 URL 或 IP
 - ✅ 支持批量目标导入
 - ✅ 自定义扫描参数
+<img width="2560" height="1592" alt="image" src="https://github.com/user-attachments/assets/7d50c7d3-bc2d-423e-af74-87bbc9fb356a" />
 
 ### 📊 结果分析
 
@@ -209,6 +211,9 @@ graph LR
 | 📝 **扫描日志** | 实时查看过程日志 | 打开日志窗口 |
 
 </div>
+<img width="2560" height="1592" alt="image" src="https://github.com/user-attachments/assets/ab911d70-d31b-4ee1-8165-dcafc187e7ab" />
+<img width="2560" height="1592" alt="image" src="https://github.com/user-attachments/assets/33bf4a22-6919-4eb7-98f5-658802c41b1c" />
+<img width="2560" height="1592" alt="image" src="https://github.com/user-attachments/assets/4beb6eba-7ee1-43db-9319-d8c1100c3a70" />
 
 ### 🏗️ 技术架构
 
@@ -218,44 +223,7 @@ graph LR
 
 </div>
 
-### 🖥️ 后端
 
-- **Go** - 高性能后端语言
-- **Wails v2** - 跨平台桌面框架
-- **SQLite** - 轻量级数据库
-
-### 🎨 前端
-
-- **React 18** - 现代化前端框架
-- **TypeScript** - 类型安全
-- **Ant Design** - 企业级UI组件
-
-### 🔍 扫描引擎
-
-- **Nuclei v3** - 强大的漏洞扫描引擎
-- **YAML模板** - 灵活的POC定义
-- **多协议支持** - HTTP/HTTPS/其他协议
-
-### 🔧 构建工具
-
-- **Vite** - 快速构建工具
-- **Wails** - 应用打包
-- **Go Modules** - 依赖管理
-
-### 🐛 报告问题
-
-<div align="center">
-
-#### 📝 问题反馈
-
-[![GitHub Issues](https://img.shields.io/badge/GitHub-Issues-FF6B6B?style=for-the-badge&logo=github)](https://github.com/cyber0s/wepoc/issues)
-
-</div>
-
-- 📋 **详细描述** - 提供详细的复现步骤
-- 🖥️ **环境信息** - 操作系统、版本等
-- 📸 **截图日志** - 附上相关的日志和截图
-- 🏷️ **标签分类** - 使用合适的标签分类问题
 
 ## 📄 许可证
 
@@ -267,26 +235,6 @@ graph LR
 
 </div>
 
-## ⚠️ 免责声明
-
-<div align="center">
-
-### ⚖️ 法律声明
-
-</div>
-
-> **⚠️ 重要提示**：本工具仅用于合法的安全测试和研究目的。
-
-<div align="center">
-
-| 要求 | 说明 |
-|------|------|
-| 📜 **遵守法律** | 遵守当地法律法规 |
-| 🔐 **授权测试** | 仅在获得明确授权的系统上测试 |
-| ⚖️ **承担责任** | 承担使用本工具的全部法律责任 |
-| 🚫 **禁止滥用** | 不得将本工具用于非法活动 |
-
-</div>
 
 **开发者不对使用本工具可能产生的任何法律后果承担责任。**
 
@@ -294,7 +242,6 @@ graph LR
 
 <div align="center">
 
-### 🎉 特别感谢
 
 </div>
 
