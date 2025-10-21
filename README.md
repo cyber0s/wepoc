@@ -2,7 +2,7 @@
 
 # 🛡️ wepoc
 
-### 现代化 Nuclei 漏洞扫描器图形界面工具
+### Nuclei 漏洞扫描器图形界面工具
 
 [![wepoc Logo](https://img.shields.io/badge/wepoc-Nuclei%20GUI-2E8B57?style=for-the-badge&logo=shield&logoColor=white)](https://github.com/cyber0s/wepoc)
 [![Go Version](https://img.shields.io/badge/Go-1.24+-00ADD8?style=for-the-badge&logo=go&logoColor=white)](https://golang.org/)
@@ -10,10 +10,8 @@
 [![Wails](https://img.shields.io/badge/Wails-v2-FF6B6B?style=for-the-badge&logo=wails&logoColor=white)](https://wails.io/)
 [![License](https://img.shields.io/badge/License-GPL--3.0-4CAF50?style=for-the-badge&logo=opensourceinitiative&logoColor=white)](LICENSE)
 
-> 🚀 **基于 Wails v2 框架的现代化 Nuclei 漏洞扫描器图形界面工具**  
+> 🚀 **基于 Wails v2 框架的 Nuclei 漏洞扫描器图形界面工具**  
 > 专为安全研究人员和渗透测试工程师设计
-
-[📖 功能特性](#-功能特性) • [🚀 快速开始](#-快速开始) • [📚 使用指南](#-使用指南) • [🔧 开发文档](#-开发文档) • [🤝 贡献指南](#-贡献指南)
 
 ---
 
@@ -21,7 +19,7 @@
 
 ## 📖 项目简介
 
-<div align="center">
+<div align="">
 
 **wepoc** 是一个专为安全研究人员和渗透测试工程师设计的现代化漏洞扫描工具。
 
@@ -43,10 +41,9 @@
 - ✅ **智能验证** 和去重处理
 - ✅ **高级筛选** 按关键词和严重等级
 - ✅ **搜索分类** 模板管理
+-    <img src="./assets/image-20251021143608266.png" alt="模板管理" width="600"/>
 
-<img src="./assets/image-20251021143608266.png" alt="模板管理" width="600"/>
 
-<img src="./assets/image-20251021144048432.png" alt="模板管理详情" width="600"/>
 
 ### 🎯 扫描任务
 
@@ -54,14 +51,11 @@
 - ✅ **实时监控** 进度跟踪
 - ✅ **任务重扫** 支持重新扫描
 - ✅ **状态保持** 多选POC模板
-
-<img src="./assets/image-20251021143658636.png" alt="扫描任务" width="600"/>
-
-<img src="./assets/image-20251021144128996.png" alt="扫描任务详情" width="600"/>
-
-<img src="./assets/image-20251021144149421.png" alt="扫描任务配置" width="600"/>
-
-<img src="./assets/image-20251021144219739.png" alt="扫描任务状态" width="600"/>
+- <img src="./assets/image-20251021143658636.png" alt="扫描任务" width="600"/>
+- <img src="./assets/image-20251021144128996.png" alt="扫描任务详情" width="600"/>
+- <img src="./assets/image-20251021144048432.png" alt="模板管理详情" width="600"/>
+- <img src="./assets/image-20251021144149421.png" alt="扫描任务配置" width="600"/>
+- <img src="./assets/image-20251021144219739.png" alt="扫描任务状态" width="600"/>
 
 ### 📊 结果分析
 
