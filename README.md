@@ -51,9 +51,9 @@
 - ✅ **高级筛选** 按关键词和严重等级
 - ✅ **搜索分类** 模板管理
 
-<div align="center">
 <img src="./assets/image-20251021143608266.png" alt="模板管理" width="600"/>
-</div>
+
+<img src="./assets/image-20251021144048432.png" alt="模板管理详情" width="600"/>
 
 ### 🎯 扫描任务
 
@@ -62,9 +62,13 @@
 - ✅ **任务重扫** 支持重新扫描
 - ✅ **状态保持** 多选POC模板
 
-<div align="center">
 <img src="./assets/image-20251021143658636.png" alt="扫描任务" width="600"/>
-</div>
+
+<img src="./assets/image-20251021144128996.png" alt="扫描任务详情" width="600"/>
+
+<img src="./assets/image-20251021144149421.png" alt="扫描任务配置" width="600"/>
+
+<img src="./assets/image-20251021144219739.png" alt="扫描任务状态" width="600"/>
 
 ### 📊 结果分析
 
@@ -72,9 +76,13 @@
 - ✅ **请求响应** 数据查看
 - ✅ **实时通知** 扫描结果
 
-<div align="center">
 <img src="./assets/image-20251021154518940.png" alt="结果分析" width="600"/>
-</div>
+
+<img src="./assets/image-20251021154143547.png" alt="结果分析详情" width="600"/>
+
+<img src="./assets/image-20251021154345139.png" alt="漏洞详情" width="600"/>
+
+<img src="./assets/image-20251021154420948.png" alt="扫描结果" width="600"/>
 
 ### ⚙️ 配置管理
 
@@ -82,9 +90,11 @@
 - ✅ **配置保存** 持久化设置
 - ✅ **路径配置** Nuclei路径设置
 
-<div align="center">
 <img src="./assets/image-20251021154828421.png" alt="配置管理" width="600"/>
-</div>
+
+<img src="./assets/image-20251021154628346.png" alt="配置管理详情" width="600"/>
+
+<img src="./assets/image-20251021154755624.png" alt="系统设置" width="600"/>
 
 ### 🚀 高级特性
 
