@@ -1,51 +1,59 @@
 <div align="center">
+
 # 🛡️ wepoc
-### Nuclei GUI漏洞扫描器图形界面工具
-[![wepoc Logo](https://img.shields.io/badge/wepoc-Nuclei%20GUI-2E8B57?style=for-the-badge&logo=shield&logoColor=white)](https://github.com/your-username/wepoc)
+
+### 现代化 Nuclei 漏洞扫描器图形界面工具
+
+[![wepoc Logo](https://img.shields.io/badge/wepoc-Nuclei%20GUI-2E8B57?style=for-the-badge&logo=shield&logoColor=white)](https://github.com/cyber0s/wepoc)
 [![Go Version](https://img.shields.io/badge/Go-1.24+-00ADD8?style=for-the-badge&logo=go&logoColor=white)](https://golang.org/)
 [![React](https://img.shields.io/badge/React-18+-61DAFB?style=for-the-badge&logo=react&logoColor=white)](https://reactjs.org/)
 [![Wails](https://img.shields.io/badge/Wails-v2-FF6B6B?style=for-the-badge&logo=wails&logoColor=white)](https://wails.io/)
-[![License](https://img.shields.io/badge/License-MIT-4CAF50?style=for-the-badge&logo=opensourceinitiative&logoColor=white)](LICENSE)
+[![License](https://img.shields.io/badge/License-GPL--3.0-4CAF50?style=for-the-badge&logo=opensourceinitiative&logoColor=white)](LICENSE)
 
 > 🚀 **基于 Wails v2 框架的现代化 Nuclei 漏洞扫描器图形界面工具**  
 > 专为安全研究人员和渗透测试工程师设计
 
-[📖 功能特性](#-功能特性) • [🚀 快速开始](#-快速开始) • [📚 使用指南](#-使用指南) • [🤝 贡献指南](#-贡献指南)
----
-</div>
+[📖 功能特性](#-功能特性) • [🚀 快速开始](#-快速开始) • [📚 使用指南](#-使用指南) • [🔧 开发文档](#-开发文档) • [🤝 贡献指南](#-贡献指南)
+
 ---
 
-## 📖 项目简介
-<div align="center">
-**wepoc** 是一个专为安全研究人员和渗透测试工程师设计的现代化漏洞扫描工具。
-基于强大的 [Nuclei](https://github.com/projectdiscovery/nuclei) 扫描引擎，通过友好的图形界面让漏洞扫描变得更加简单高效。
 </div>
+
+## 📖 项目简介
+
+<div align="center">
+
+**wepoc** 是一个专为安全研究人员和渗透测试工程师设计的现代化漏洞扫描工具。
+
+基于强大的 [Nuclei](https://github.com/projectdiscovery/nuclei) 扫描引擎，通过友好的图形界面让漏洞扫描变得更加简单高效。
+
+</div>
+
 ### 🎯 设计理念
+
 - **🎨 现代化界面** - 基于 React 18 + Ant Design 的现代化 UI
 - **⚡ 高性能扫描** - 多任务并发，异步处理，任务间互不影响
 - **🔧 易于使用** - 图形化界面，降低使用门槛
 - **📊 详细分析** - 完整的扫描结果分析和报告
 
 ## ✨ 功能特性
+
 <div align="center">
+
 ### 🔍 核心功能一览
+
 </div>
 
-<table>
-<tr>
-<td width="50%">
 ### 📁 模板管理
+
 - ✅ **批量导入** Nuclei YAML 模板
 - ✅ **智能验证** 和去重处理
 - ✅ **高级筛选** 按关键词和严重等级
 - ✅ **搜索分类** 模板管理
 
 <div align="center">
-<img src="./assets/image-20251021143608266.png" alt="模板管理" width="400"/>
+<img src="./assets/image-20251021143608266.png" alt="模板管理" width="600"/>
 </div>
-
-</td>
-<td width="50%">
 
 ### 🎯 扫描任务
 
@@ -55,16 +63,8 @@
 - ✅ **状态保持** 多选POC模板
 
 <div align="center">
-<img src="./assets/image-20251021143658636.png" alt="扫描任务" width="400"/>
+<img src="./assets/image-20251021143658636.png" alt="扫描任务" width="600"/>
 </div>
-
-</td>
-</tr>
-</table>
-
-<table>
-<tr>
-<td width="50%">
 
 ### 📊 结果分析
 
@@ -73,11 +73,8 @@
 - ✅ **实时通知** 扫描结果
 
 <div align="center">
-<img src="./assets/image-20251021154518940.png" alt="结果分析" width="400"/>
+<img src="./assets/image-20251021154518940.png" alt="结果分析" width="600"/>
 </div>
-
-</td>
-<td width="50%">
 
 ### ⚙️ 配置管理
 
@@ -86,12 +83,8 @@
 - ✅ **路径配置** Nuclei路径设置
 
 <div align="center">
-<img src="./assets/image-20251021154828421.png" alt="配置管理" width="400"/>
+<img src="./assets/image-20251021154828421.png" alt="配置管理" width="600"/>
 </div>
-
-</td>
-</tr>
-</table>
 
 ### 🚀 高级特性
 
@@ -127,12 +120,12 @@
 
 #### 🎯 方式一：预编译版本（推荐）
 
-[![Download](https://img.shields.io/badge/Download-Latest-4CAF50?style=for-the-badge&logo=download)](https://github.com/your-username/wepoc/releases)
+[![Download](https://img.shields.io/badge/Download-Latest-4CAF50?style=for-the-badge&logo=download)](https://github.com/cyber0s/wepoc/releases)
 
 </div>
 
 1. 📥 **下载安装包**
-   - 访问 [Releases](https://github.com/your-username/wepoc/releases) 页面
+   - 访问 [Releases](https://github.com/cyber0s/wepoc/releases) 页面
    - 选择对应操作系统的安装包
 
 2. 🔧 **安装应用**
@@ -148,18 +141,11 @@
 
 </div>
 
-<table>
-<tr>
-<td width="33%">
-
 ### 1️⃣ 启动应用
 
 - 🚀 运行 wepoc 应用程序
 - 📜 阅读并同意法律协议
 - ⚙️ 配置 Nuclei 路径
-
-</td>
-<td width="33%">
 
 ### 2️⃣ 导入模板
 
@@ -167,18 +153,11 @@
 - 🔍 选择自定义模板
 - ✅ 验证模板有效性
 
-</td>
-<td width="33%">
-
 ### 3️⃣ 开始扫描
 
 - 🎯 创建扫描任务
 - 📊 实时监控进度
 - 🔍 查看扫描结果
-
-</td>
-</tr>
-</table>
 
 ### 🎯 创建扫描任务
 
@@ -197,28 +176,17 @@ graph LR
     E --> F[分析结果]
 ```
 
-<table>
-<tr>
-<td width="50%">
-
 ### 📁 选择模板
 
 - ✅ 在模板管理页面选择 POC
 - ✅ 支持多选和批量操作
 - ✅ 按严重等级筛选
 
-</td>
-<td width="50%">
-
 ### 🎯 设置目标
 
 - ✅ 输入目标 URL 或 IP
 - ✅ 支持批量目标导入
 - ✅ 自定义扫描参数
-
-</td>
-</tr>
-</table>
 
 ### 📊 结果分析
 
@@ -240,18 +208,11 @@ graph LR
 
 </div>
 
-<table>
-<tr>
-<td width="25%">
-
 ### 🖥️ 后端
 
 - **Go** - 高性能后端语言
 - **Wails v2** - 跨平台桌面框架
 - **SQLite** - 轻量级数据库
-
-</td>
-<td width="25%">
 
 ### 🎨 前端
 
@@ -259,17 +220,11 @@ graph LR
 - **TypeScript** - 类型安全
 - **Ant Design** - 企业级UI组件
 
-</td>
-<td width="25%">
-
 ### 🔍 扫描引擎
 
 - **Nuclei v3** - 强大的漏洞扫描引擎
 - **YAML模板** - 灵活的POC定义
 - **多协议支持** - HTTP/HTTPS/其他协议
-
-</td>
-<td width="25%">
 
 ### 🔧 构建工具
 
@@ -277,17 +232,13 @@ graph LR
 - **Wails** - 应用打包
 - **Go Modules** - 依赖管理
 
-</td>
-</tr>
-</table>
-
 ### 🐛 报告问题
 
 <div align="center">
 
 #### 📝 问题反馈
 
-[![GitHub Issues](https://img.shields.io/badge/GitHub-Issues-FF6B6B?style=for-the-badge&logo=github)](https://github.com/your-username/wepoc/issues)
+[![GitHub Issues](https://img.shields.io/badge/GitHub-Issues-FF6B6B?style=for-the-badge&logo=github)](https://github.com/cyber0s/wepoc/issues)
 
 </div>
 
@@ -300,9 +251,9 @@ graph LR
 
 <div align="center">
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-4CAF50?style=for-the-badge&logo=opensourceinitiative&logoColor=white)](LICENSE)
+[![License: GPL-3.0](https://img.shields.io/badge/License-GPL--3.0-4CAF50?style=for-the-badge&logo=opensourceinitiative&logoColor=white)](LICENSE)
 
-本项目采用 [MIT License](LICENSE) 许可证。
+本项目采用 [GPL-3.0 License](LICENSE) 许可证。
 
 </div>
 
@@ -337,38 +288,21 @@ graph LR
 
 </div>
 
-<table>
-<tr>
-<td width="25%">
-
 ### 🔍 [Nuclei](https://github.com/projectdiscovery/nuclei)
 
 强大的漏洞扫描引擎
-
-</td>
-<td width="25%">
 
 ### 🖥️ [Wails](https://wails.io/)
 
 优秀的跨平台桌面应用框架
 
-</td>
-<td width="25%">
-
 ### 🎨 [Ant Design](https://ant.design/)
 
 企业级 UI 组件库
 
-</td>
-<td width="25%">
-
 ### ⚛️ [React](https://reactjs.org/)
 
 现代化的前端框架
-
-</td>
-</tr>
-</table>
 
 ---
 
@@ -376,11 +310,7 @@ graph LR
 
 **⭐ 如果这个项目对你有帮助，请给我们一个 Star！**
 
-[![GitHub stars](https://img.shields.io/github/stars/your-username/wepoc?style=social)](https://github.com/your-username/wepoc)
-[![GitHub forks](https://img.shields.io/github/forks/your-username/wepoc?style=social)](https://github.com/your-username/wepoc)
-
-</div>
-
-
+[![GitHub stars](https://img.shields.io/github/stars/cyber0s/wepoc?style=social)](https://github.com/cyber0s/wepoc)
+[![GitHub forks](https://img.shields.io/github/forks/cyber0s/wepoc?style=social)](https://github.com/cyber0s/wepoc)
 
 </div>
