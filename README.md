@@ -31,7 +31,7 @@
 
 ## ✨ 功能特性
 
-<div align="center">
+<div align="">
 
 ### 🔍 核心功能一览
 
@@ -91,7 +91,7 @@
 
 ### 🚀 高级特性
 
-<div align="center">
+<div align="">
 
 | 特性 | 描述 | 状态 |
 |------|------|------|
@@ -105,7 +105,7 @@
 
 ## 🚀 快速开始
 
-<div align="center">
+<div align="">
 
 ### 📋 系统要求
 
@@ -119,7 +119,7 @@
 
 ### 📦 安装方式
 
-<div align="center">
+<div align="">
 
 #### 🎯 方式一：预编译版本（推荐）
 
@@ -135,10 +135,10 @@
    - Windows: 运行 `.exe` 安装程序
    - macOS: 拖拽到应用程序文件夹
    - Linux: 解压并运行可执行文件
-
+star 过50发windows版本！！！
 ### 🎮 首次使用
 
-<div align="center">
+<div align="">
 
 #### 📋 使用步骤
 
