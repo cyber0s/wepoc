@@ -1,9 +1,6 @@
 <div align="center">
-
 # 🛡️ wepoc
-
-### 现代化 Nuclei 漏洞扫描器图形界面工具
-
+### Nuclei GUI漏洞扫描器图形界面工具
 [![wepoc Logo](https://img.shields.io/badge/wepoc-Nuclei%20GUI-2E8B57?style=for-the-badge&logo=shield&logoColor=white)](https://github.com/your-username/wepoc)
 [![Go Version](https://img.shields.io/badge/Go-1.24+-00ADD8?style=for-the-badge&logo=go&logoColor=white)](https://golang.org/)
 [![React](https://img.shields.io/badge/React-18+-61DAFB?style=for-the-badge&logo=react&logoColor=white)](https://reactjs.org/)
@@ -13,45 +10,31 @@
 > 🚀 **基于 Wails v2 框架的现代化 Nuclei 漏洞扫描器图形界面工具**  
 > 专为安全研究人员和渗透测试工程师设计
 
-[📖 功能特性](#-功能特性) • [🚀 快速开始](#-快速开始) • [📚 使用指南](#-使用指南) • [🔧 开发文档](#-开发文档) • [🤝 贡献指南](#-贡献指南)
-
+[📖 功能特性](#-功能特性) • [🚀 快速开始](#-快速开始) • [📚 使用指南](#-使用指南) • [🤝 贡献指南](#-贡献指南)
 ---
-
 </div>
-
 ---
 
 ## 📖 项目简介
-
 <div align="center">
-
 **wepoc** 是一个专为安全研究人员和渗透测试工程师设计的现代化漏洞扫描工具。
-
 基于强大的 [Nuclei](https://github.com/projectdiscovery/nuclei) 扫描引擎，通过友好的图形界面让漏洞扫描变得更加简单高效。
-
 </div>
-
 ### 🎯 设计理念
-
 - **🎨 现代化界面** - 基于 React 18 + Ant Design 的现代化 UI
 - **⚡ 高性能扫描** - 多任务并发，异步处理，任务间互不影响
 - **🔧 易于使用** - 图形化界面，降低使用门槛
 - **📊 详细分析** - 完整的扫描结果分析和报告
 
 ## ✨ 功能特性
-
 <div align="center">
-
 ### 🔍 核心功能一览
-
 </div>
 
 <table>
 <tr>
 <td width="50%">
-
 ### 📁 模板管理
-
 - ✅ **批量导入** Nuclei YAML 模板
 - ✅ **智能验证** 和去重处理
 - ✅ **高级筛选** 按关键词和严重等级
