@@ -1,0 +1,22 @@
+{
+  "$schema": "https://wails.io/schemas/config.v2.json",
+  "name": "wepoc",
+  "outputfilename": "wepoc",
+  "frontend:install": "npm install",
+  "frontend:build": "npm run build",
+  "frontend:dev:watcher": "npm run dev",
+  "frontend:dev:serverUrl": "auto",
+  "assetdir": "./frontend/dist",
+  "reloaddirs": "frontend/src",
+  "info": {
+    "productName": "wepoc",
+    "productVersion": "1.0.0",
+    "copyright": "Copyright © 2025 wepoc. All rights reserved.",
+    "comments": "Nuclei GUI Scanner - A powerful vulnerability scanner with modern interface"
+  },
+  "author": {
+    "name": "xinux",
+    "email": "5529699+code_xinux@user.noreply.gitee.com"
+  },
+  "icon": "appicon.png"
+}

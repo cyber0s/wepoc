@@ -1,0 +1,359 @@
+.template-management {
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    background-color: #f5f5f5;
+    overflow: hidden;
+    position: relative;
+  }
+  
+  /* 顶部工具栏 - 固定 */
+  .top-toolbar {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: white;
+    padding: 12px 16px;
+    border-bottom: 1px solid #e8e8e8;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-shrink: 0;
+    gap: 16px;
+  }
+  
+  .toolbar-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
+  }
+  
+  .toolbar-stats {
+    display: flex;
+    gap: 16px;
+    margin-left: 16px;
+    font-size: 13px;
+    color: #666;
+  }
+  
+  .toolbar-stats span {
+    white-space: nowrap;
+  }
+  
+  .toolbar-stats strong {
+    color: #1890ff;
+    font-weight: 600;
+  }
+  
+  .toolbar-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  
+  .toolbar-right .ant-input-search {
+    width: 200px;
+  }
+  
+  .toolbar-right .ant-select {
+    width: 100px;
+  }
+  
+  /* 模板列表容器 - 可滚动 */
+  .template-list-container {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    background: white;
+    margin: 0;
+  }
+  
+  .template-list-container .ant-table-wrapper {
+    height: 100%;
+  }
+  
+  .template-list-container .ant-table {
+    font-size: 12px;
+  }
+  
+  .template-list-container .ant-table-thead > tr > th {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: #fafafa;
+    font-weight: 600;
+    padding: 10px 12px;
+    font-size: 12px;
+  }
+  
+  .template-list-container .ant-table-tbody > tr > td {
+    padding: 8px 12px;
+  }
+  
+  /* 底部操作栏 - 固定 */
+  .bottom-toolbar {
+    position: sticky;
+    bottom: 0;
+    z-index: 100;
+    background: white;
+    padding: 6px 12px;
+    border-top: 1px solid #e8e8e8;
+    box-shadow: 0 -2px 4px rgba(0, 0, 0, 0.05);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-shrink: 0;
+    height: 44px;
+    gap: 8px;
+  }
+  
+  .bottom-left {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    min-width: 0;
+  }
+  
+  .selection-info {
+    font-size: 12px;
+    color: #666;
+    white-space: nowrap;
+  }
+  
+  .selection-info strong {
+    color: #1890ff;
+    font-weight: 600;
+    margin: 0 2px;
+  }
+  
+  .bottom-center {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-width: 0;
+    overflow: hidden;
+  }
+  
+  .bottom-center .ant-pagination {
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  
+  .bottom-center .ant-pagination-item,
+  .bottom-center .ant-pagination-prev,
+  .bottom-center .ant-pagination-next,
+  .bottom-center .ant-pagination-jump-prev,
+  .bottom-center .ant-pagination-jump-next {
+    min-width: 22px;
+    height: 22px;
+    line-height: 20px;
+    font-size: 11px;
+    margin: 0 1px;
+  }
+  
+  .bottom-center .ant-pagination-options {
+    font-size: 11px;
+    margin-left: 4px;
+  }
+  
+  .bottom-center .ant-pagination-options-size-changer {
+    height: 22px;
+  }
+  
+  .bottom-center .ant-pagination-options-size-changer .ant-select-selector {
+    height: 22px;
+    font-size: 11px;
+  }
+  
+
+  /* 分页选择器样式 - 确保下拉菜单正常显示 */
+  .bottom-center .ant-pagination-options-size-changer {
+    position: relative;
+  }
+
+  .bottom-center .ant-pagination-options-size-changer .ant-select {
+    z-index: 1001;
+  }
+
+  .bottom-center .ant-pagination-options-size-changer .ant-select-dropdown {
+    z-index: 1050 !important;
+    position: absolute !important;
+    top: auto !important;
+    bottom: 100% !important;
+    margin-bottom: 4px !important;
+  }
+
+  /* 选择器箭头向上 */
+  .bottom-center .ant-pagination-options-size-changer .ant-select-arrow {
+    transform: rotate(180deg);
+  }
+
+  /* 选择器打开时的样式 */
+  .bottom-center .ant-pagination-options-size-changer.ant-select-open .ant-select-arrow {
+    transform: rotate(180deg);
+  }
+
+  /* 全局下拉菜单层级 */
+  .ant-select-dropdown {
+    z-index: 1050 !important;
+  }
+
+  /* 确保下拉菜单在底部工具栏上方显示 */
+  .bottom-toolbar {
+    position: relative;
+    z-index: 1000;
+  }
+
+  /* 强制下拉菜单显示 - 覆盖所有可能的隐藏规则 */
+  .template-management .ant-select-dropdown {
+    z-index: 9999 !important;
+    position: fixed !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    display: block !important;
+  }
+
+  /* 确保选择器容器不隐藏下拉菜单 */
+  .template-management .ant-pagination-options-size-changer {
+    overflow: visible !important;
+  }
+
+  .template-management .bottom-center {
+    overflow: visible !important;
+  }
+  
+  .bottom-center .ant-pagination-total-text {
+    font-size: 11px;
+    margin-right: 6px;
+    white-space: nowrap;
+  }
+  
+  .bottom-right {
+    flex: 0 0 auto;
+    display: flex;
+    justify-content: flex-end;
+    min-width: 0;
+  }
+  
+  /* 标签样式 */
+  .template-tag {
+    font-size: 11px;
+    padding: 0 6px;
+    margin: 0;
+    border-radius: 2px;
+  }
+  
+  .severity-tag {
+    font-size: 11px;
+    font-weight: 600;
+    padding: 0 8px;
+    border-radius: 4px;
+  }
+  
+  /* 滚动条样式 */
+  .template-list-container::-webkit-scrollbar {
+    width: 8px;
+  }
+  
+  .template-list-container::-webkit-scrollbar-track {
+    background: #f1f1f1;
+  }
+  
+  .template-list-container::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 4px;
+  }
+  
+  .template-list-container::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+  }
+  
+  /* 表格行悬停效果 */
+  .template-list-container .ant-table-tbody > tr:hover > td {
+    background-color: #f5f7fa;
+  }
+  
+  /* 确保表格内容不会被底部工具栏遮挡 */
+  .template-list-container .ant-table-body {
+    min-height: 100%;
+  }
+  
+  /* 响应式调整 */
+  @media (max-width: 1200px) {
+    .toolbar-right .ant-input-search {
+      width: 160px;
+    }
+    
+    .toolbar-right .ant-select {
+      width: 90px;
+    }
+    
+    .bottom-toolbar {
+      padding: 4px 8px;
+      height: 40px;
+      gap: 4px;
+    }
+    
+    .bottom-center .ant-pagination-item,
+    .bottom-center .ant-pagination-prev,
+    .bottom-center .ant-pagination-next,
+    .bottom-center .ant-pagination-jump-prev,
+    .bottom-center .ant-pagination-jump-next {
+      min-width: 20px;
+      height: 20px;
+      line-height: 18px;
+      font-size: 10px;
+    }
+    
+    .bottom-center .ant-pagination-options-size-changer .ant-select-selector {
+      height: 20px;
+      font-size: 10px;
+    }
+    
+    
+    .bottom-center .ant-pagination-total-text {
+      font-size: 10px;
+      margin-right: 4px;
+    }
+    
+    .selection-info {
+      font-size: 11px;
+    }
+  }
+  
+  @media (max-width: 900px) {
+    .bottom-toolbar {
+      flex-wrap: nowrap;
+      overflow-x: auto;
+      overflow-y: hidden;
+    }
+    
+    .bottom-left {
+      flex-shrink: 0;
+    }
+    
+    .bottom-center {
+      flex-shrink: 0;
+      min-width: 400px;
+    }
+    
+    .bottom-right {
+      flex-shrink: 0;
+    }
+    
+  }
+  
+  @media (max-width: 600px) {
+    .bottom-center .ant-pagination-options-size-changer {
+      display: none;
+    }
+    
+    .bottom-center .ant-pagination-total-text {
+      display: none;
+    }
+  }

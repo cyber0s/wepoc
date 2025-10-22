@@ -1,0 +1,48 @@
+/* 自定义滚动条样式 */
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: #d9d9d9 #f0f0f0;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: #f0f0f0;
+  border-radius: 3px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #d9d9d9;
+  border-radius: 3px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #bfbfbf;
+}
+
+/* 任务列表项悬停效果 */
+.task-list-item {
+  transition: all 0.2s ease;
+}
+
+.task-list-item:hover {
+  background-color: #fafafa !important;
+}
+
+.task-list-item.selected {
+  background-color: #e6f7ff !important;
+}
+
+/* 紧凑样式 */
+.compact-text {
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.compact-tag {
+  font-size: 10px;
+  padding: 1px 4px;
+  line-height: 16px;
+}
