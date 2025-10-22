@@ -489,90 +489,12 @@ const Settings = () => {
                   size="large"
                   style={{ width: 100 }}
                 >
-                  设置
+                  保存
                 </Button>
               </Space.Compact>
             </Form.Item>
 
-            {/* 常见路径提示 */}
-            <Alert
-              message="💡 常见 Nuclei 路径"
-              description={
-                <Space direction="vertical" size="small" style={{ width: '100%' }}>
-                  <Text type="secondary" style={{ fontSize: 12 }}>
-                    点击"选择目录"按钮选择包含 nuclei 的目录，程序会自动查找可执行文件：
-                  </Text>
-                  <Space wrap>
-                    <Tag 
-                      color="blue" 
-                      style={{ cursor: 'pointer' }}
-                      onClick={() => {
-                        setCurrentNucleiPath('/usr/local/bin/nuclei');
-                        form.setFieldsValue({ nuclei_path: '/usr/local/bin/nuclei' });
-                      }}
-                    >
-                      /usr/local/bin/nuclei
-                    </Tag>
-                    <Tag 
-                      color="blue" 
-                      style={{ cursor: 'pointer' }}
-                      onClick={() => {
-                        setCurrentNucleiPath('/Users/xinux/go/bin/nuclei');
-                        form.setFieldsValue({ nuclei_path: '/Users/xinux/go/bin/nuclei' });
-                      }}
-                    >
-                      /Users/xinux/go/bin/nuclei
-                    </Tag>
-                    <Tag 
-                      color="blue" 
-                      style={{ cursor: 'pointer' }}
-                      onClick={() => {
-                        setCurrentNucleiPath('~/go/bin/nuclei');
-                        form.setFieldsValue({ nuclei_path: '~/go/bin/nuclei' });
-                      }}
-                    >
-                      ~/go/bin/nuclei
-                    </Tag>
-                    <Tag 
-                      color="green" 
-                      style={{ cursor: 'pointer' }}
-                      onClick={() => {
-                        setCurrentNucleiPath('C:\\Users\\username\\go\\bin\\nuclei.exe');
-                        form.setFieldsValue({ nuclei_path: 'C:\\Users\\username\\go\\bin\\nuclei.exe' });
-                      }}
-                    >
-                      C:\Users\username\go\bin\nuclei.exe
-                    </Tag>
-                    <Tag 
-                      color="green" 
-                      style={{ cursor: 'pointer' }}
-                      onClick={() => {
-                        setCurrentNucleiPath('C:\\Program Files\\nuclei\\nuclei.exe');
-                        form.setFieldsValue({ nuclei_path: 'C:\\Program Files\\nuclei\\nuclei.exe' });
-                      }}
-                    >
-                      C:\Program Files\nuclei\nuclei.exe
-                    </Tag>
-                    <Tag 
-                      color="blue" 
-                      style={{ cursor: 'pointer' }}
-                      onClick={() => {
-                        setCurrentNucleiPath('nuclei');
-                        form.setFieldsValue({ nuclei_path: 'nuclei' });
-                      }}
-                    >
-                      nuclei (在 PATH 中)
-                    </Tag>
-                  </Space>
-                  <Text type="secondary" style={{ fontSize: 12 }}>
-                    点击标签可快速填入路径，然后点击"测试"按钮验证
-                  </Text>
-                </Space>
-              }
-              type="info"
-              style={{ marginBottom: 16 }}
-              showIcon={false}
-            />
+           
 
             {/* Nuclei 状态显示 */}
             {nucleiStatus && (
@@ -708,43 +630,20 @@ const Settings = () => {
         {/* GitHub 信息卡片 */}
         <Card title="项目信息" style={{ marginTop: 16 }}>
           <div style={{ textAlign: 'center', padding: '20px 0' }}>
-            <div style={{ marginBottom: 16 }}>
-              <img 
-                src="/assets/images/logo-universal.png" 
-                alt="wepoc logo" 
-                style={{ width: 64, height: 64, marginBottom: 12 }}
-              />
-            </div>
-            <h3 style={{ margin: '0 0 8px 0', color: '#1890ff' }}>wepoc</h3>
+            <h2 style={{ margin: '0 0 8px 0', color: '#1890ff' }}>wepoc</h2>
             <p style={{ margin: '0 0 16px 0', color: '#666' }}>
-              Nuclei 漏洞扫描器图形界面工具
+              wepoc - Nuclei 漏洞扫描器图形界面工具
             </p>
+            <div style={{ marginBottom: 16 }}>
+              Github：https://github.com/cyber0s/wepoc
+            </div>
             <div style={{ marginBottom: 16 }}>
               <Tag color="blue" style={{ marginRight: 8 }}>Go</Tag>
               <Tag color="green" style={{ marginRight: 8 }}>React</Tag>
               <Tag color="purple" style={{ marginRight: 8 }}>Wails</Tag>
               <Tag color="orange">Nuclei</Tag>
             </div>
-            <div style={{ marginBottom: 16 }}>
-              <Button 
-                type="primary" 
-                icon={<GithubOutlined />}
-                href="https://github.com/cyber0s/wepoc"
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{ marginRight: 12 }}
-              >
-                查看源码
-              </Button>
-              <Button 
-                icon={<StarOutlined />}
-                href="https://github.com/cyber0s/wepoc"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                给个 Star
-              </Button>
-            </div>
+            
             <div style={{ fontSize: '12px', color: '#999' }}>
               <p style={{ margin: '4px 0' }}>
                 <strong>版本:</strong> 1.0.0
