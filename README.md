@@ -117,14 +117,13 @@
 <div align="center">
 
 
-### 🔍 [Nuclei](https://github.com/projectdiscovery/nuclei)
+🔍 [Nuclei](https://github.com/projectdiscovery/nuclei)
 
-### 🖥️ [Wails](https://wails.io/)
+🖥️ [Wails](https://wails.io/)
 
-
-### 🎨 [Ant Design](https://ant.design/)
-
-### ⚛️ [React](https://reactjs.org/)
+ 🎨 [Ant Design](https://ant.design/)
+ 
+ ⚛️ [React](https://reactjs.org/)
 </div>
 
 
