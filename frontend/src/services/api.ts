@@ -134,6 +134,10 @@ export const createScanTask = (pocs: string[], targets: string[], taskName?: str
   return App.CreateScanTask(JSON.stringify(pocs), JSON.stringify(targets), taskName || '');
 };
 
+export const updateScanTask = (taskId: number, pocs: string[], targets: string[], taskName?: string): Promise<any> => {
+  return App.UpdateScanTask(taskId, JSON.stringify(pocs), JSON.stringify(targets), taskName || '');
+};
+
 export const startScanTask = (taskId: number): Promise<void> => {
   return App.StartScanTask(taskId);
 };

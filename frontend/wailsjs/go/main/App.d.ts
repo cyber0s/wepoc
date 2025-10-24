@@ -72,4 +72,6 @@ export function StopScanTask(arg1:number):Promise<void>;
 
 export function TestNucleiPath(arg1:string):Promise<main.NucleiTestResult>;
 
+export function UpdateScanTask(arg1:number,arg2:string,arg3:string,arg4:string):Promise<scanner.TaskConfig>;
+
 export function ValidateNucleiPath():Promise<void>;

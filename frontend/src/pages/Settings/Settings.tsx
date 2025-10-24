@@ -257,23 +257,23 @@ const Settings = () => {
   };
 
   return (
-    <div style={{ padding: 0, backgroundColor: '#f5f5f5', minHeight: '100vh' }}>
+    <div style={{ padding: 0, backgroundColor: '#f0f2f5', minHeight: '100vh' }}>
       {/* 顶部导航栏 */}
       <div style={{
         position: 'sticky',
         top: 0,
         zIndex: 100,
         marginBottom: 16,
-        padding: '16px 24px',
+        padding: '12px 20px',
         backgroundColor: 'white',
         borderBottom: '1px solid #e8e8e8',
-        boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+        boxShadow: '0 1px 4px rgba(0,0,0,0.05)',
       }}>
         <Space align="center">
-          <InfoCircleOutlined style={{ fontSize: 20, color: '#1890ff' }} />
-          <Title level={4} style={{ margin: 0, fontSize: 18, fontWeight: 600 }}>系统设置</Title>
+          <InfoCircleOutlined style={{ fontSize: 18, color: '#1890ff' }} />
+          <Title level={4} style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>系统设置</Title>
         </Space>
-        <Text type="secondary" style={{ fontSize: 13 }}>配置 POC 模板路径、导入规则和系统参数</Text>
+        <Text type="secondary" style={{ fontSize: 12 }}>配置 POC 模板路径、导入规则和系统参数</Text>
       </div>
       
       <div style={{ padding: '0 24px', maxWidth: 1200, margin: '0 auto' }}>

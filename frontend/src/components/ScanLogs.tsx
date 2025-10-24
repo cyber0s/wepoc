@@ -156,17 +156,16 @@ const ScanLogs: React.FC<ScanLogsProps> = ({ logs, autoScroll = true, maxHeight 
             </Text>
           </div>
 
-          <div style={{ marginLeft: 20 }}>
-            <Text style={{ fontSize: 12, lineHeight: '18px' }}>{log.message}</Text>
+          <div style={{ marginTop: 2 }}>
+            <Text style={{ fontSize: 11, lineHeight: '16px' }}>
+              {log.message}
+            </Text>
             {log.target && (
-              <Text type="secondary" style={{ 
-                fontSize: 10, 
-                lineHeight: '16px',
-                display: 'block',
-                marginTop: 2
-              }}>
-                目标: {log.target}
-              </Text>
+              <div style={{ marginTop: 2 }}>
+                <Text type="secondary" style={{ fontSize: 10 }}>
+                  目标: {log.target}
+                </Text>
+              </div>
             )}
           </div>
 
@@ -242,41 +241,56 @@ const ScanLogs: React.FC<ScanLogsProps> = ({ logs, autoScroll = true, maxHeight 
             <CodeOutlined style={{ marginRight: 6, fontSize: 14 }} />
             实时日志 ({filteredLogs.length})
           </span>
-          <div style={{ display: 'flex', gap: 6 }}>
+          <div style={{ display: 'flex', gap: 8 }}>
             <Select
               value={levelFilter}
               onChange={setLevelFilter}
-              style={{ width: 100, fontSize: 12 }}
+              style={{ width: 90, fontSize: 12 }}
               size="small"
             >
-              <Select.Option value="all">全部级别</Select.Option>
+              <Select.Option value="all">全部</Select.Option>
               <Select.Option value="INFO">INFO</Select.Option>
               <Select.Option value="DEBUG">DEBUG</Select.Option>
               <Select.Option value="WARN">WARN</Select.Option>
               <Select.Option value="ERROR">ERROR</Select.Option>
             </Select>
             <Search
-              placeholder="搜索日志..."
+              placeholder="搜索..."
               value={searchText}
               onChange={(e) => setSearchText(e.target.value)}
-              style={{ width: 160, fontSize: 12 }}
+              style={{ width: 140, fontSize: 12 }}
               size="small"
               prefix={<SearchOutlined style={{ fontSize: 12 }} />}
             />
           </div>
         </div>
       }
-      style={{ marginTop: 12 }}
-      bodyStyle={{ padding: '8px 12px' }}
+      style={{ marginTop: 8 }}
+      bodyStyle={{ 
+        padding: '6px 8px',
+        height: 'calc(100vh - 280px)',
+        display: 'flex',
+        flexDirection: 'column'
+      }}
     >
-      <div style={{ maxHeight, overflow: 'auto' }}>
+      <div style={{ 
+        flex: 1,
+        overflowY: 'auto',
+        overflowX: 'hidden',
+        scrollbarWidth: 'thin',
+        scrollbarColor: '#d9d9d9 #f0f0f0'
+      }}>
         {filteredLogs.length > 0 ? (
           <>
             <List
               size="small"
               dataSource={filteredLogs}
               renderItem={renderLogItem}
-              style={{ backgroundColor: '#fafafa', borderRadius: 4 }}
+              style={{ 
+                backgroundColor: '#fafafa', 
+                borderRadius: 4,
+                padding: '4px 0'
+              }}
             />
             <div ref={logsEndRef} />
           </>

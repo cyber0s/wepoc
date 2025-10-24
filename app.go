@@ -569,6 +569,21 @@ func (a *App) GetRunningScanTasks() []*models.ScanTask {
 	return a.taskManager.GetRunningTasks()
 }
 
+// UpdateScanTask updates an existing scan task (JSON-based)
+func (a *App) UpdateScanTask(taskID int64, pocsJSON string, targetsJSON string, taskName string) (*scanner.TaskConfig, error) {
+	var pocs []string
+	if err := json.Unmarshal([]byte(pocsJSON), &pocs); err != nil {
+		return nil, fmt.Errorf("invalid POCs JSON: %v", err)
+	}
+
+	var targets []string
+	if err := json.Unmarshal([]byte(targetsJSON), &targets); err != nil {
+		return nil, fmt.Errorf("invalid targets JSON: %v", err)
+	}
+
+	return a.jsonTaskManager.UpdateTask(taskID, pocs, targets, taskName)
+}
+
 // DeleteScanTask deletes a scan task (JSON-based)
 func (a *App) DeleteScanTask(taskID int64) error {
 	return a.jsonTaskManager.DeleteTask(taskID)

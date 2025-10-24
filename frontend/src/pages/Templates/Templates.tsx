@@ -75,18 +75,6 @@ const Templates = () => {
     // 检查POC模板可用性，如果没有则提示用户
     checkPOCAvailability();
 
-    // 恢复上次的选择状态
-    const savedSelection = sessionStorage.getItem('selectedTemplates');
-    if (savedSelection) {
-      try {
-        const parsed = JSON.parse(savedSelection);
-        setSelectedRows(parsed.rows || []);
-        setSelectedRowKeys(parsed.keys || []);
-      } catch (e) {
-        console.error('Failed to restore selection:', e);
-      }
-    }
-
     // 监听模板导入进度事件
     const unsubscribe = api.onTemplateImportProgress((data: any) => {
       if (data && data.data) {
@@ -106,6 +94,38 @@ const Templates = () => {
       }
     };
   }, []);
+
+  // 当模板加载完成后，恢复上次的选择状态
+  useEffect(() => {
+    if (templates.length === 0) return; // 等待模板加载完成
+    
+    const savedSelection = sessionStorage.getItem('selectedTemplates');
+    if (savedSelection) {
+      try {
+        const parsed = JSON.parse(savedSelection);
+        
+        // 兼容两种数据格式：
+        // 1. 来自扫描任务页面的简单数组格式: ["template1", "template2"]
+        // 2. 模板管理页面的对象格式: {rows: [], keys: []}
+        if (Array.isArray(parsed)) {
+          // 如果是数组格式（来自扫描任务页面），需要根据模板路径找到对应的模板对象
+          const matchedTemplates = templates.filter(template => 
+            parsed.includes(template.file_path)
+          );
+          setSelectedRows(matchedTemplates);
+          setSelectedRowKeys(matchedTemplates.map(t => t.id));
+        } else if (parsed && typeof parsed === 'object') {
+          // 如果是对象格式（模板管理页面自己的格式）
+          setSelectedRows(parsed.rows || []);
+          setSelectedRowKeys(parsed.keys || []);
+        }
+      } catch (e) {
+        console.error('Failed to restore selection:', e);
+        // 清除无效的sessionStorage数据
+        sessionStorage.removeItem('selectedTemplates');
+      }
+    }
+  }, [templates]); // 依赖templates，确保模板加载完成后再恢复选择状态
 
   // 保存选择状态到sessionStorage
   useEffect(() => {
@@ -233,10 +253,19 @@ const Templates = () => {
   };
 
   const handleConfirmTaskName = () => {
+    // Generate task name if not provided
+    const finalTaskName = taskName.trim() || `POC扫描任务-${new Date().toLocaleString('zh-CN', {
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit'
+    }).replace(/\//g, '').replace(/:/g, '').replace(' ', '-')}`;
+    
     // Navigate to scan tasks page with selected templates and task name
     const templateIds = selectedRows.map(t => t.file_path);
     sessionStorage.setItem('selectedTemplates', JSON.stringify(templateIds));
-    sessionStorage.setItem('taskName', taskName);
+    sessionStorage.setItem('taskName', finalTaskName);
+    sessionStorage.setItem('autoCreateTask', 'true'); // 标记需要自动创建任务
     setShowTaskNameModal(false);
     setTaskName('');
     navigate('/tasks');

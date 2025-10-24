@@ -44,6 +44,7 @@ const ScanTasks = () => {
   const [loading, setLoading] = useState(false);
   const [creating, setCreating] = useState(false);
   const [createModalVisible, setCreateModalVisible] = useState(false);
+  const [editingTask, setEditingTask] = useState<TaskConfig | null>(null); // For editing existing task
   const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc');
 
   // Template selection modal states
@@ -65,7 +66,19 @@ const ScanTasks = () => {
 
     // Check if there's a task name from template page (indicates user wants to create task)
     const savedTaskName = sessionStorage.getItem('taskName');
-    if (savedTaskName) {
+    const autoCreateTask = sessionStorage.getItem('autoCreateTask');
+    
+    if (savedTaskName && autoCreateTask === 'true') {
+      setTaskName(savedTaskName);
+      // Auto-create task directly if coming from template page with auto-create flag
+      setTimeout(() => {
+        handleAutoCreateTask(savedTaskName);
+      }, 500); // Small delay to ensure templates are loaded
+      
+      // Clear the flags from session storage
+      sessionStorage.removeItem('taskName');
+      sessionStorage.removeItem('autoCreateTask');
+    } else if (savedTaskName) {
       setTaskName(savedTaskName);
       // Auto-open create modal if coming from template page
       setCreateModalVisible(true);
@@ -101,8 +114,7 @@ const ScanTasks = () => {
           )
         );
         
-        // Force a re-render to ensure UI updates
-        forceUpdate();
+        // Tasks state will automatically trigger re-render
       } else if (event.event_type === 'vuln_found') {
         // Vulnerability notification is now handled globally by GlobalVulnNotification component
         // No need to handle it here
@@ -150,26 +162,81 @@ const ScanTasks = () => {
   };
 
   const loadSelectedTemplates = () => {
-    const templates = sessionStorage.getItem('selectedTemplates');
-    if (templates) {
-      setSelectedTemplates(JSON.parse(templates));
+    try {
+      const stored = sessionStorage.getItem('selectedTemplates');
+      if (stored) {
+        const templates = JSON.parse(stored);
+        if (Array.isArray(templates)) {
+          setSelectedTemplates(templates);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load selected templates:', error);
+      sessionStorage.removeItem('selectedTemplates');
+    }
+  };
+
+  // Auto-create task when coming from template page
+  const handleAutoCreateTask = async (autoTaskName: string) => {
+    if (selectedTemplates.length === 0) {
+      message.info('已加载模板，请填写目标或选择更多POC');
+      setCreateModalVisible(true);
+      return;
+    }
+
+    // Create task with auto-generated name and empty targets (user can add later)
+    setCreating(true);
+    try {
+      console.log('Auto-creating task with:', {
+        templates: selectedTemplates,
+        targets: [], // Empty targets initially
+        taskName: autoTaskName
+      });
+      
+      const task = await api.createScanTask(selectedTemplates, [], autoTaskName);
+      
+      if (task && task.id) {
+        message.success(`任务 "${autoTaskName}" 创建成功，请添加目标地址后开始扫描`);
+        await loadTasks();
+        // Select the newly created task
+        setSelectedTask(task);
+        // Show info message to guide user to add targets
+        setTimeout(() => {
+          message.info('请在右侧添加目标地址，然后点击开始扫描', 5);
+        }, 1000);
+      } else {
+        throw new Error('任务创建失败：返回数据异常');
+      }
+    } catch (error: any) {
+      console.error('Failed to auto-create task:', error);
+      const errorMessage = error?.message || error?.toString() || '未知错误';
+      message.error(`自动创建任务失败: ${errorMessage}`);
+      // Fallback to manual creation modal
+      setCreateModalVisible(true);
+    } finally {
+      setCreating(false);
     }
   };
 
   const handleCreateTask = async () => {
+    if (!taskName.trim()) {
+      message.error('请输入任务名称');
+      return;
+    }
+
     if (selectedTemplates.length === 0) {
-      message.warning('请先选择 POC 模板');
+      message.error('请选择至少一个模板');
       return;
     }
 
     if (!targets.trim()) {
-      message.warning('请输入目标地址');
+      message.error('请输入至少一个目标');
       return;
     }
 
     const targetList = targets.split('\n').filter(t => t.trim());
     if (targetList.length === 0) {
-      message.warning('请输入有效的目标地址');
+      message.error('请输入有效的目标地址');
       return;
     }
 
@@ -178,26 +245,40 @@ const ScanTasks = () => {
       console.log('Creating task with:', {
         templates: selectedTemplates,
         targets: targetList,
-        taskName: taskName || undefined
+        taskName: taskName
       });
       
-      const task = await api.createScanTask(selectedTemplates, targetList, taskName || undefined);
+      let task;
+      if (editingTask) {
+        // Update existing task
+        task = await api.updateScanTask(editingTask.id, selectedTemplates, targetList, taskName);
+        message.success('任务更新成功');
+      } else {
+        // Create new task
+        task = await api.createScanTask(selectedTemplates, targetList, taskName);
+        message.success('任务创建成功');
+      }
       
       if (task && task.id) {
-        message.success('任务创建成功');
+        // Reset form and close modal
         setCreateModalVisible(false);
         setTargets('');
         setTaskName('');
         setSelectedTemplates([]);
+        setEditingTask(null);
+        
+        // Clear sessionStorage
         sessionStorage.removeItem('selectedTemplates');
+        
+        // Reload tasks to reflect changes
         await loadTasks();
       } else {
-        throw new Error('任务创建失败：返回数据异常');
+        throw new Error(editingTask ? '任务更新失败：返回数据异常' : '任务创建失败：返回数据异常');
       }
     } catch (error: any) {
-      console.error('Failed to create task:', error);
+      console.error('Failed to create/update task:', error);
       const errorMessage = error?.message || error?.toString() || '未知错误';
-      message.error(`创建任务失败: ${errorMessage}`);
+      message.error(`${editingTask ? '更新' : '创建'}任务失败: ${errorMessage}`);
     } finally {
       setCreating(false);
     }
@@ -396,42 +477,44 @@ const ScanTasks = () => {
 
     // Merge and deduplicate
     const merged = [...new Set([...existingPaths, ...newTemplatePaths])];
-    setSelectedTemplates(merged);
-
-    // Update sessionStorage
-    sessionStorage.setItem('selectedTemplates', JSON.stringify(merged));
+    
+    // Update state using functional update to ensure latest state
+    setSelectedTemplates(prevTemplates => {
+      const updatedTemplates = [...new Set([...prevTemplates, ...newTemplatePaths])];
+      // Update sessionStorage with the latest state
+      sessionStorage.setItem('selectedTemplates', JSON.stringify(updatedTemplates));
+      return updatedTemplates;
+    });
 
     message.success(`已添加 ${selectedTemplateRows.length} 个模板`);
     setTemplateModalVisible(false);
+    
+    // Clear selection state
+    setSelectedTemplateRows([]);
+    setSelectedTemplateKeys([]);
   };
 
   // Remove a specific template from selected list
   const handleRemoveTemplate = (templatePath: string) => {
-    const updated = selectedTemplates.filter(t => t !== templatePath);
-    setSelectedTemplates(updated);
-    sessionStorage.setItem('selectedTemplates', JSON.stringify(updated));
+    setSelectedTemplates(prevTemplates => {
+      const updatedTemplates = prevTemplates.filter(t => t !== templatePath);
+      // Update sessionStorage with the latest state
+      sessionStorage.setItem('selectedTemplates', JSON.stringify(updatedTemplates));
+      return updatedTemplates;
+    });
   };
 
-  // Add force update function
-  const [, updateState] = useState({});
-  const forceUpdate = useCallback(() => {
-    updateState({});
-  }, []);
-
   return (
-    <div style={{ padding: 0, position: 'relative', backgroundColor: '#f5f5f5', minHeight: '100vh' }}>
+    <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
       <div style={{
-        position: 'sticky',
-        top: 0,
-        zIndex: 100,
-        marginBottom: 8,
-        padding: '8px 16px',
-        backgroundColor: 'white',
+        padding: '12px 16px',
+        backgroundColor: '#fff',
         borderBottom: '1px solid #e8e8e8',
         boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
         display: 'flex',
         justifyContent: 'space-between',
-        alignItems: 'center'
+        alignItems: 'center',
+        flexShrink: 0
       }}>
         <Title level={4} style={{ margin: 0, fontSize: '16px', fontWeight: '500' }}>扫描任务</Title>
         <Space>
@@ -448,9 +531,9 @@ const ScanTasks = () => {
         </Space>
       </div>
 
-      <Row gutter={16} style={{ padding: '0 16px' }}>
+      <Row gutter={16} style={{ padding: '0 16px', flex: 1, minHeight: 0 }}>
         {/* Left: Task List */}
-        <Col span={8}>
+        <Col span={8} style={{ height: '100%' }}>
           <Card 
             title={
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -466,9 +549,35 @@ const ScanTasks = () => {
                 </Select>
               </div>
             } 
-            bodyStyle={{ padding: 0, height: 'calc(100vh - 120px)', display: 'flex', flexDirection: 'column' }}
-            style={{ height: '100vh', display: 'flex', flexDirection: 'column' }}
+            bodyStyle={{ 
+              padding: 0, 
+              height: 'calc(100vh - 140px)', 
+              display: 'flex', 
+              flexDirection: 'column',
+              position: 'relative'
+            }}
+            style={{ 
+              height: '100%', 
+              display: 'flex', 
+              flexDirection: 'column'
+            }}
           >
+            {/* Fixed header area */}
+            <div style={{
+              position: 'sticky',
+              top: 0,
+              zIndex: 10,
+              backgroundColor: '#fafafa',
+              borderBottom: '1px solid #f0f0f0',
+              padding: '8px 12px',
+              fontSize: 12,
+              color: '#666',
+              fontWeight: 500
+            }}>
+              共 {tasks.length} 个任务
+            </div>
+            
+            {/* Scrollable content area */}
             <div style={{ 
               flex: 1, 
               overflowY: 'auto', 
@@ -569,9 +678,9 @@ const ScanTasks = () => {
         </Col>
 
         {/* Right: Task Details */}
-        <Col span={16}>
+        <Col span={16} style={{ height: '100%', overflow: 'hidden' }}>
           {selectedTask ? (
-            <div>
+            <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
               <Card
                 title={
                   <Space>
@@ -620,10 +729,22 @@ const ScanTasks = () => {
                     </Button>
                   </Space>
                 }
+                style={{ 
+                  height: '100%', 
+                  display: 'flex', 
+                  flexDirection: 'column' 
+                }}
+                bodyStyle={{ 
+                  flex: 1, 
+                  overflow: 'hidden', 
+                  display: 'flex', 
+                  flexDirection: 'column',
+                  padding: '16px'
+                }}
               >
                 {/* Progress - Show first if running */}
                 {(taskProgress[selectedTask.id] || selectedTask.status === 'running') && (
-                  <div style={{ marginBottom: 16 }}>
+                  <div style={{ marginBottom: 16, flexShrink: 0 }}>
                     <ScanProgressComponent progress={taskProgress[selectedTask.id] || {
                       task_id: selectedTask.id,
                       total_requests: selectedTask.total_requests,
@@ -636,76 +757,107 @@ const ScanTasks = () => {
                 )}
 
                 {/* Task Info - Compact layout */}
-                <Row gutter={[12, 12]} style={{ marginBottom: 12 }}>
-                  <Col span={12}>
-                    <div style={{
-                      padding: '8px 12px',
-                      background: '#fafafa',
-                      borderRadius: 4,
-                      border: '1px solid #f0f0f0'
-                    }}>
-                      <Text type="secondary" style={{ fontSize: 12 }}>目标列表</Text>
-                      <div style={{ marginTop: 4 }}>
-                        {selectedTask.targets.slice(0, 3).map((target, index) => (
-                          <Tag key={index} style={{ marginBottom: 2, fontSize: 11 }}>
-                            {target}
-                          </Tag>
-                        ))}
-                        {selectedTask.targets.length > 3 && (
-                          <Tag style={{ fontSize: 11 }}>+{selectedTask.targets.length - 3} more</Tag>
+                <div style={{ flex: 1, overflow: 'auto', display: 'flex', flexDirection: 'column' }}>
+                  <Row gutter={[12, 12]} style={{ marginBottom: 12, flexShrink: 0 }}>
+                    <Col span={12}>
+                      <div style={{
+                        padding: '8px 12px',
+                        background: selectedTask.targets.length === 0 ? '#fff2e8' : '#fafafa',
+                        borderRadius: 4,
+                        border: selectedTask.targets.length === 0 ? '1px solid #ffbb96' : '1px solid #f0f0f0'
+                      }}>
+                        <Text type="secondary" style={{ fontSize: 12 }}>目标列表</Text>
+                        {selectedTask.targets.length === 0 ? (
+                          <div style={{ marginTop: 4 }}>
+                            <Text type="warning" style={{ fontSize: 12 }}>
+                              ⚠️ 请添加目标地址后开始扫描
+                            </Text>
+                            <br />
+                            <Button 
+                               type="link" 
+                               size="small" 
+                               style={{ padding: 0, height: 'auto', fontSize: 11 }}
+                               onClick={() => {
+                                 setEditingTask(selectedTask);
+                                 setTaskName(selectedTask.name);
+                                 setTargets(selectedTask.targets.join('\n'));
+                                 setSelectedTemplates(selectedTask.pocs);
+                                 setCreateModalVisible(true);
+                               }}
+                             >
+                               点击添加目标地址
+                             </Button>
+                          </div>
+                        ) : (
+                          <div style={{ marginTop: 4 }}>
+                            {selectedTask.targets.slice(0, 3).map((target, index) => (
+                              <Tag key={index} style={{ marginBottom: 2, fontSize: 11 }}>
+                                {target}
+                              </Tag>
+                            ))}
+                            {selectedTask.targets.length > 3 && (
+                               <Text type="secondary" style={{ fontSize: 11 }}>
+                                 +{selectedTask.targets.length - 3} 更多
+                               </Text>
+                             )}
+                          </div>
                         )}
                       </div>
-                    </div>
-                  </Col>
-                  <Col span={12}>
-                    <div style={{
-                      padding: '8px 12px',
-                      background: '#fafafa',
-                      borderRadius: 4,
-                      border: '1px solid #f0f0f0'
-                    }}>
-                      <Text type="secondary" style={{ fontSize: 12 }}>发现漏洞</Text>
-                      <div style={{ marginTop: 4 }}>
-                        <Text strong style={{ fontSize: 20, color: '#ff4d4f' }}>
-                          {selectedTask.found_vulns || 0}
-                        </Text>
-                        <Text type="secondary" style={{ marginLeft: 8, fontSize: 12 }}>个</Text>
-                      </div>
-                    </div>
-                  </Col>
-                </Row>
+                    </Col>
+                    <Col span={12}>
+                      <div style={{
+                         padding: '8px 12px',
+                         background: '#fafafa',
+                         borderRadius: 4,
+                         border: '1px solid #f0f0f0'
+                       }}>
+                         <Text type="secondary" style={{ fontSize: 12 }}>POC 模板</Text>
+                         <div style={{ marginTop: 4 }}>
+                           {selectedTask.pocs.slice(0, 3).map((poc, index) => {
+                             const pocName = poc.split('/').pop()?.replace('.yaml', '') || poc;
+                             return (
+                               <Tag key={index} style={{ marginBottom: 2, fontSize: 11 }}>
+                                 {pocName}
+                               </Tag>
+                             );
+                           })}
+                           {selectedTask.pocs.length > 3 && (
+                             <Text type="secondary" style={{ fontSize: 11 }}>
+                               +{selectedTask.pocs.length - 3} 更多
+                             </Text>
+                           )}
+                         </div>
+                       </div>
+                    </Col>
+                  </Row>
 
-                {/* POC Templates - Collapsed by default */}
-                <div style={{
-                  padding: '8px 12px',
-                  background: '#fafafa',
-                  borderRadius: 4,
-                  border: '1px solid #f0f0f0',
-                  marginBottom: 12
-                }}>
-                  <Text type="secondary" style={{ fontSize: 12 }}>POC 模板 ({selectedTask.pocs.length})</Text>
-                  <div style={{ marginTop: 4, maxHeight: 60, overflow: 'auto' }}>
-                    {selectedTask.pocs.map((poc, index) => {
-                      const pocName = poc.split('/').pop()?.replace('.yaml', '') || poc;
-                      return (
-                        <Tag key={index} color="blue" style={{ marginBottom: 2, fontSize: 11 }}>
-                          {pocName}
-                        </Tag>
-                      );
-                    })}
-                  </div>
+                  {/* POC Templates - Collapsed by default */}
+                   <div style={{
+                     padding: '8px 12px',
+                     background: '#fafafa',
+                     borderRadius: 4,
+                     border: '1px solid #f0f0f0',
+                     marginBottom: 12,
+                     flexShrink: 0
+                   }}>
+                     <Text type="secondary" style={{ fontSize: 12 }}>发现漏洞: </Text>
+                     <Text strong style={{ fontSize: 16, color: '#ff4d4f' }}>
+                       {selectedTask.found_vulns || 0}
+                     </Text>
+                     <Text type="secondary" style={{ marginLeft: 4, fontSize: 12 }}>个</Text>
+                   </div>
+
+                  {/* Logs */}
+                  {taskLogs[selectedTask.id] && taskLogs[selectedTask.id].length > 0 && (
+                    <div style={{ flex: 1, minHeight: 0 }}>
+                      <ScanLogs logs={taskLogs[selectedTask.id]} />
+                    </div>
+                  )}
                 </div>
-
-                {/* Logs */}
-                {taskLogs[selectedTask.id] && taskLogs[selectedTask.id].length > 0 && (
-                  <div style={{ marginTop: 12 }}>
-                    <ScanLogs logs={taskLogs[selectedTask.id]} maxHeight={350} />
-                  </div>
-                )}
               </Card>
             </div>
           ) : (
-            <Card>
+            <Card style={{ height: '100%' }}>
               <div style={{ textAlign: 'center', padding: 40 }}>
                 <Text type="secondary">请从左侧选择一个任务查看详情</Text>
               </div>
@@ -716,10 +868,16 @@ const ScanTasks = () => {
 
       {/* Create Task Modal */}
       <Modal
-        title="创建扫描任务"
+        title={editingTask ? "编辑扫描任务" : "创建扫描任务"}
         open={createModalVisible}
         onOk={handleCreateTask}
-        onCancel={() => setCreateModalVisible(false)}
+        onCancel={() => {
+           setCreateModalVisible(false);
+           setEditingTask(null);
+           setTaskName('');
+           setTargets('');
+           setSelectedTemplates([]);
+         }}
         confirmLoading={creating}
         width={700}
       >
@@ -727,7 +885,7 @@ const ScanTasks = () => {
           <div>
             <Text strong>任务名称 (可选):</Text>
             <Input
-              placeholder="留空自动生成"
+              placeholder={editingTask ? "编辑任务名称" : "留空自动生成"}
               value={taskName}
               onChange={(e) => setTaskName(e.target.value)}
               style={{ marginTop: 8 }}
@@ -743,7 +901,7 @@ const ScanTasks = () => {
                 icon={<FileAddOutlined />}
                 onClick={handleOpenTemplateModal}
               >
-                加载模板
+                添加更多POC
               </Button>
             </div>
             <div style={{ marginTop: 8, maxHeight: 200, overflow: 'auto', border: '1px solid #f0f0f0', borderRadius: 4, padding: 8 }}>

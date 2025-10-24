@@ -138,6 +138,10 @@ export function TestNucleiPath(arg1) {
   return window['go']['main']['App']['TestNucleiPath'](arg1);
 }
 
+export function UpdateScanTask(arg1, arg2, arg3, arg4) {
+  return window['go']['main']['App']['UpdateScanTask'](arg1, arg2, arg3, arg4);
+}
+
 export function ValidateNucleiPath() {
   return window['go']['main']['App']['ValidateNucleiPath']();
 }

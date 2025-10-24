@@ -14,11 +14,11 @@ import (
 
 // JSONTaskManager manages scanning tasks using JSON files instead of database
 type JSONTaskManager struct {
-	tasksDir   string
-	resultsDir string
-	logsDir    string
-	mu         sync.RWMutex
-	nextTaskID int64
+	tasksDir      string
+	resultsDir    string
+	logsDir       string
+	mu            sync.RWMutex
+	nextTaskID    int64
 	eventHandlers map[int64]func(*ScanEvent) // Task ID -> event handler
 	handlersMu    sync.RWMutex
 	config        *models.Config // Add configuration support
@@ -26,41 +26,41 @@ type JSONTaskManager struct {
 
 // TaskConfig represents a task configuration stored in JSON
 type TaskConfig struct {
-	ID              int64     `json:"id"`
-	Name            string    `json:"name"`
-	Status          string    `json:"status"` // pending, running, completed, failed
-	POCs            []string  `json:"pocs"`
-	Targets         []string  `json:"targets"`
-	TotalRequests   int       `json:"total_requests"`
-	CompletedRequests int     `json:"completed_requests"`
-	FoundVulns      int       `json:"found_vulns"`
-	StartTime       time.Time `json:"start_time"`
-	EndTime         *time.Time `json:"end_time,omitempty"`
-	OutputFile      string    `json:"output_file"`
-	LogFile         string    `json:"log_file"`
-	CreatedAt       time.Time `json:"created_at"`
-	UpdatedAt       time.Time `json:"updated_at"`
+	ID                int64      `json:"id"`
+	Name              string     `json:"name"`
+	Status            string     `json:"status"` // pending, running, completed, failed
+	POCs              []string   `json:"pocs"`
+	Targets           []string   `json:"targets"`
+	TotalRequests     int        `json:"total_requests"`
+	CompletedRequests int        `json:"completed_requests"`
+	FoundVulns        int        `json:"found_vulns"`
+	StartTime         time.Time  `json:"start_time"`
+	EndTime           *time.Time `json:"end_time,omitempty"`
+	OutputFile        string     `json:"output_file"`
+	LogFile           string     `json:"log_file"`
+	CreatedAt         time.Time  `json:"created_at"`
+	UpdatedAt         time.Time  `json:"updated_at"`
 }
 
 // TaskResult represents the scan result stored in JSON
 type TaskResult struct {
-	TaskID           int64                    `json:"task_id"`
-	TaskName         string                   `json:"task_name"`
-	Status           string                   `json:"status"`
-	StartTime        time.Time                `json:"start_time"`
-	EndTime          time.Time                `json:"end_time"`
-	Duration         string                   `json:"duration"`
-	Targets          []string                 `json:"targets"`
-	Templates        []string                 `json:"templates"`
-	TemplateCount    int                      `json:"template_count"`
-	TargetCount      int                      `json:"target_count"`
-	TotalRequests    int                      `json:"total_requests"`
-	CompletedRequests int                     `json:"completed_requests"`
-	FoundVulns       int                      `json:"found_vulns"`
-	SuccessRate      float64                  `json:"success_rate"`
-	Vulnerabilities  []*models.NucleiResult   `json:"vulnerabilities"`
-	Summary          map[string]interface{}   `json:"summary"`
-	CreatedAt        time.Time                `json:"created_at"`
+	TaskID            int64                  `json:"task_id"`
+	TaskName          string                 `json:"task_name"`
+	Status            string                 `json:"status"`
+	StartTime         time.Time              `json:"start_time"`
+	EndTime           time.Time              `json:"end_time"`
+	Duration          string                 `json:"duration"`
+	Targets           []string               `json:"targets"`
+	Templates         []string               `json:"templates"`
+	TemplateCount     int                    `json:"template_count"`
+	TargetCount       int                    `json:"target_count"`
+	TotalRequests     int                    `json:"total_requests"`
+	CompletedRequests int                    `json:"completed_requests"`
+	FoundVulns        int                    `json:"found_vulns"`
+	SuccessRate       float64                `json:"success_rate"`
+	Vulnerabilities   []*models.NucleiResult `json:"vulnerabilities"`
+	Summary           map[string]interface{} `json:"summary"`
+	CreatedAt         time.Time              `json:"created_at"`
 }
 
 // NewJSONTaskManager creates a new JSON-based task manager
@@ -89,12 +89,12 @@ func NewJSONTaskManager(config *models.Config) (*JSONTaskManager, error) {
 	}
 
 	return &JSONTaskManager{
-		tasksDir:   tasksDir,
-		resultsDir: resultsDir,
-		logsDir:    logsDir,
-		nextTaskID: nextID,
+		tasksDir:      tasksDir,
+		resultsDir:    resultsDir,
+		logsDir:       logsDir,
+		nextTaskID:    nextID,
 		eventHandlers: make(map[int64]func(*ScanEvent)),
-		config:    config,
+		config:        config,
 	}, nil
 }
 
@@ -144,19 +144,19 @@ func (tm *JSONTaskManager) CreateTask(pocs []string, targets []string, taskName 
 
 	// Create task configuration
 	task := &TaskConfig{
-		ID:              taskID,
-		Name:            taskName,
-		Status:          "pending",
-		POCs:            pocs,
-		Targets:         targets,
-		TotalRequests:   len(pocs) * len(targets),
+		ID:                taskID,
+		Name:              taskName,
+		Status:            "pending",
+		POCs:              pocs,
+		Targets:           targets,
+		TotalRequests:     len(pocs) * len(targets),
 		CompletedRequests: 0,
-		FoundVulns:      0,
-		StartTime:       now,
-		OutputFile:      filepath.Join(tm.resultsDir, fmt.Sprintf("task_%d_result.json", taskID)),
-		LogFile:         filepath.Join(tm.logsDir, fmt.Sprintf("task_%d.log", taskID)),
-		CreatedAt:       now,
-		UpdatedAt:       now,
+		FoundVulns:        0,
+		StartTime:         now,
+		OutputFile:        filepath.Join(tm.resultsDir, fmt.Sprintf("task_%d_result.json", taskID)),
+		LogFile:           filepath.Join(tm.logsDir, fmt.Sprintf("task_%d.log", taskID)),
+		CreatedAt:         now,
+		UpdatedAt:         now,
 	}
 
 	fmt.Printf("Task config created: %+v\n", task)
@@ -290,7 +290,7 @@ func (tm *JSONTaskManager) runScanTask(task *TaskConfig) {
 					task.UpdatedAt = time.Now()
 					tm.saveTaskConfig(task)
 					tm.mu.Unlock()
-					
+
 					// Also emit event to ensure it's received by frontend
 					tm.emitEvent(task.ID, event)
 				}
@@ -357,6 +357,39 @@ func (tm *JSONTaskManager) GetAllTasks() ([]*TaskConfig, error) {
 }
 
 // GetTaskByID returns a specific task
+// UpdateTask updates an existing task configuration
+func (tm *JSONTaskManager) UpdateTask(taskID int64, pocs []string, targets []string, taskName string) (*TaskConfig, error) {
+	tm.mu.Lock()
+	defer tm.mu.Unlock()
+
+	// Load existing task
+	task, err := tm.loadTaskConfig(taskID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load task: %v", err)
+	}
+
+	// Check if task is running
+	if task.Status == "running" {
+		return nil, fmt.Errorf("cannot update running task")
+	}
+
+	// Update task fields
+	task.Name = taskName
+	task.POCs = pocs
+	task.Targets = targets
+	task.UpdatedAt = time.Now()
+
+	// Calculate total requests
+	task.TotalRequests = len(pocs) * len(targets)
+
+	// Save updated task
+	if err := tm.saveTaskConfig(task); err != nil {
+		return nil, fmt.Errorf("failed to save updated task: %v", err)
+	}
+
+	return task, nil
+}
+
 func (tm *JSONTaskManager) GetTaskByID(taskID int64) (*TaskConfig, error) {
 	tm.mu.RLock()
 	defer tm.mu.RUnlock()
@@ -419,7 +452,7 @@ func (tm *JSONTaskManager) GetTaskResult(taskID int64) (*TaskResult, error) {
 	return result, nil
 }
 
-// GetAllTaskResults returns all task results
+// GetAllTaskResults returns all task results with vulnerabilities found
 func (tm *JSONTaskManager) GetAllTaskResults() ([]*TaskResult, error) {
 	tm.mu.RLock()
 	defer tm.mu.RUnlock()
@@ -436,7 +469,10 @@ func (tm *JSONTaskManager) GetAllTaskResults() ([]*TaskResult, error) {
 			fmt.Printf("Failed to load result from file %s: %v\n", file, err)
 			continue
 		}
-		results = append(results, result)
+		// Only include results that have vulnerabilities found
+		if result.FoundVulns > 0 && len(result.Vulnerabilities) > 0 {
+			results = append(results, result)
+		}
 	}
 
 	return results, nil
@@ -491,7 +527,7 @@ func (tm *JSONTaskManager) saveTaskResult(result *TaskResult) error {
 	if err != nil {
 		return err
 	}
-	
+
 	// Create result file path
 	resultFile := filepath.Join(tm.resultsDir, fmt.Sprintf("task_%d_result.json", result.TaskID))
 	return os.WriteFile(resultFile, data, 0644)
