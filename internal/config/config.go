@@ -66,6 +66,32 @@ func GetDefaultConfig() (*models.Config, error) {
 		NucleiPath:     nucleiPath,
 		MaxConcurrency: DefaultMaxConcurrency,
 		Timeout:        DefaultTimeout,
+		NucleiConfig: models.NucleiAdvancedConfig{
+			// Threading defaults
+			Concurrency:     25,
+			BulkSize:       25,
+			RateLimit:      100,
+			RateLimitMinute: 0,
+			
+			// Proxy defaults
+			ProxyEnabled:   false,
+			ProxyURL:       "",
+			ProxyList:      []string{},
+			ProxyInternal:  false,
+			
+			// DNS/OAST defaults
+			InteractshEnabled: true,
+			InteractshServer:  "",
+			InteractshToken:   "",
+			InteractshDisable: false,
+			
+			// Additional defaults
+			Retries:            1,
+			MaxHostError:       30,
+			DisableUpdateCheck: true,
+			FollowRedirects:    false,
+			MaxRedirects:       10,
+		},
 	}, nil
 }
 

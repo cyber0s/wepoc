@@ -10,7 +10,7 @@
   "reloaddirs": "frontend/src",
   "info": {
     "productName": "wepoc",
-    "productVersion": "1.0.0",
+    "productVersion": "1.2.0",
     "copyright": "Copyright © 2025 wepoc. All rights reserved.",
     "comments": "Nuclei GUI Scanner - A powerful vulnerability scanner with modern interface"
   },
@@ -18,5 +18,5 @@
     "name": "xinux",
     "email": "5529699+code_xinux@user.noreply.gitee.com"
   },
-  "icon": "wails-icon.png"
+  "icon": "wails-logo.svg"
 }

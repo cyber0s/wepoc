@@ -30,6 +30,10 @@ export function DeleteTemplate(arg1) {
   return window['go']['main']['App']['DeleteTemplate'](arg1);
 }
 
+export function ExportTaskResultAsJSON(arg1) {
+  return window['go']['main']['App']['ExportTaskResultAsJSON'](arg1);
+}
+
 export function GetAllScanResults() {
   return window['go']['main']['App']['GetAllScanResults']();
 }
@@ -50,6 +54,10 @@ export function GetConfig() {
   return window['go']['main']['App']['GetConfig']();
 }
 
+export function GetPOCTemplateContent(arg1) {
+  return window['go']['main']['App']['GetPOCTemplateContent'](arg1);
+}
+
 export function GetRunningScanTasks() {
   return window['go']['main']['App']['GetRunningScanTasks']();
 }
@@ -64,6 +72,10 @@ export function GetScanResults(arg1) {
 
 export function GetScanTaskResult(arg1) {
   return window['go']['main']['App']['GetScanTaskResult'](arg1);
+}
+
+export function GetTaskHTTPLogs(arg1) {
+  return window['go']['main']['App']['GetTaskHTTPLogs'](arg1);
 }
 
 export function GetTaskLogSummary(arg1) {
@@ -106,8 +118,16 @@ export function RescanTask(arg1) {
   return window['go']['main']['App']['RescanTask'](arg1);
 }
 
+export function SaveCSVFile(arg1, arg2) {
+  return window['go']['main']['App']['SaveCSVFile'](arg1, arg2);
+}
+
 export function SaveConfig(arg1) {
   return window['go']['main']['App']['SaveConfig'](arg1);
+}
+
+export function SavePOCTemplate(arg1, arg2) {
+  return window['go']['main']['App']['SavePOCTemplate'](arg1, arg2);
 }
 
 export function SearchTemplates(arg1, arg2) {
@@ -136,6 +156,14 @@ export function StopScanTask(arg1) {
 
 export function TestNucleiPath(arg1) {
   return window['go']['main']['App']['TestNucleiPath'](arg1);
+}
+
+export function TestProxies(arg1) {
+  return window['go']['main']['App']['TestProxies'](arg1);
+}
+
+export function TestSinglePOC(arg1) {
+  return window['go']['main']['App']['TestSinglePOC'](arg1);
 }
 
 export function UpdateScanTask(arg1, arg2, arg3, arg4) {

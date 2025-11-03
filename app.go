@@ -1,12 +1,18 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
+	"net"
+	"net/http"
+	"net/url"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"wepoc/internal/config"
 	"wepoc/internal/database"
@@ -116,6 +122,15 @@ func (a *App) SaveConfig(cfg *models.Config) error {
 		return err
 	}
 	a.config = cfg
+	
+	// Update task managers with new configuration
+	if a.taskManager != nil {
+		a.taskManager.UpdateConfig(cfg)
+	}
+	if a.jsonTaskManager != nil {
+		a.jsonTaskManager.UpdateConfig(cfg)
+	}
+	
 	return nil
 }
 
@@ -717,6 +732,24 @@ type NucleiTestResult struct {
 	Error   string `json:"error,omitempty"`
 }
 
+// ProxyTestResult represents the result of a proxy test
+type ProxyTestResult struct {
+	URL         string `json:"url"`
+	Available   bool   `json:"available"`
+	ResponseTime int64  `json:"response_time"` // in milliseconds
+	Error       string `json:"error,omitempty"`
+}
+
+// ProxyTestResults represents the results of testing multiple proxies
+type ProxyTestResults struct {
+	Results []ProxyTestResult `json:"results"`
+	Summary struct {
+		Total     int `json:"total"`
+		Available int `json:"available"`
+		Failed    int `json:"failed"`
+	} `json:"summary"`
+}
+
 // TestNucleiPath tests a user-specified nuclei path
 func (a *App) TestNucleiPath(userPath string) NucleiTestResult {
 	valid, version, err := config.ValidateUserNucleiPath(userPath)
@@ -790,8 +823,498 @@ func (a *App) ReloadConfig() error {
 // GetAppInfo returns application information
 func (a *App) GetAppInfo() map[string]string {
 	return map[string]string{
-		"name":    "wepoc",
 		"version": "1.0.0",
-		"author":  "wepoc team",
+		"name":    "WePOC",
+		"author":  "Security Team",
 	}
+}
+
+// TestProxies tests the availability of proxy servers
+func (a *App) TestProxies(proxyList []string) *ProxyTestResults {
+	results := &ProxyTestResults{
+		Results: make([]ProxyTestResult, 0, len(proxyList)),
+	}
+	
+	// Test each proxy
+	for _, proxyURL := range proxyList {
+		if strings.TrimSpace(proxyURL) == "" {
+			continue
+		}
+		
+		result := a.testSingleProxy(proxyURL)
+		results.Results = append(results.Results, result)
+		
+		if result.Available {
+			results.Summary.Available++
+		} else {
+			results.Summary.Failed++
+		}
+	}
+	
+	results.Summary.Total = len(results.Results)
+	return results
+}
+
+// testSingleProxy tests a single proxy server
+func (a *App) testSingleProxy(proxyURL string) ProxyTestResult {
+	result := ProxyTestResult{
+		URL: proxyURL,
+	}
+	
+	// Parse proxy URL
+	parsedURL, err := url.Parse(proxyURL)
+	if err != nil {
+		result.Error = fmt.Sprintf("Invalid proxy URL: %v", err)
+		return result
+	}
+	
+	// Create HTTP client with proxy
+	transport := &http.Transport{}
+	
+	// Set proxy based on scheme
+	switch parsedURL.Scheme {
+	case "http", "https":
+		transport.Proxy = http.ProxyURL(parsedURL)
+	case "socks5":
+		// For SOCKS5, we'll test TCP connection directly
+		return a.testSOCKS5Proxy(parsedURL)
+	default:
+		result.Error = "Unsupported proxy scheme"
+		return result
+	}
+	
+	client := &http.Client{
+		Transport: transport,
+		Timeout:   10 * time.Second,
+	}
+	
+	// Test proxy by making a request to a test URL
+	start := time.Now()
+	resp, err := client.Get("http://httpbin.org/ip")
+	responseTime := time.Since(start).Milliseconds()
+	
+	if err != nil {
+		result.Error = fmt.Sprintf("Connection failed: %v", err)
+		result.ResponseTime = responseTime
+		return result
+	}
+	defer resp.Body.Close()
+	
+	if resp.StatusCode == 200 {
+		result.Available = true
+		result.ResponseTime = responseTime
+	} else {
+		result.Error = fmt.Sprintf("HTTP %d", resp.StatusCode)
+		result.ResponseTime = responseTime
+	}
+	
+	return result
+}
+
+// testSOCKS5Proxy tests SOCKS5 proxy by attempting TCP connection
+func (a *App) testSOCKS5Proxy(parsedURL *url.URL) ProxyTestResult {
+	result := ProxyTestResult{
+		URL: parsedURL.String(),
+	}
+	
+	// Extract host and port
+	host := parsedURL.Hostname()
+	port := parsedURL.Port()
+	if port == "" {
+		port = "1080" // Default SOCKS5 port
+	}
+	
+	// Test TCP connection
+	start := time.Now()
+	conn, err := net.DialTimeout("tcp", net.JoinHostPort(host, port), 10*time.Second)
+	responseTime := time.Since(start).Milliseconds()
+	
+	if err != nil {
+		result.Error = fmt.Sprintf("Connection failed: %v", err)
+		result.ResponseTime = responseTime
+		return result
+	}
+	defer conn.Close()
+	
+	result.Available = true
+	result.ResponseTime = responseTime
+	return result
+}
+
+// GetTaskHTTPLogs returns HTTP request logs for a specific task
+func (a *App) GetTaskHTTPLogs(taskID int64) ([]*scanner.HTTPRequestLog, error) {
+	runtime.LogInfo(a.ctx, fmt.Sprintf("获取任务 %d 的HTTP请求日志", taskID))
+	return a.jsonTaskManager.GetHTTPRequestLogs(taskID)
+}
+
+// GetPOCTemplateContent returns the raw YAML content of a POC template
+func (a *App) GetPOCTemplateContent(templatePath string) (string, error) {
+	runtime.LogInfo(a.ctx, fmt.Sprintf("读取POC模板内容: %s", templatePath))
+
+	// 读取文件内容
+	content, err := os.ReadFile(templatePath)
+	if err != nil {
+		return "", fmt.Errorf("failed to read template file: %w", err)
+	}
+
+	return string(content), nil
+}
+
+// ExportTaskResultAsJSON exports scan result as JSON file
+func (a *App) ExportTaskResultAsJSON(taskID int64) (string, error) {
+	runtime.LogInfo(a.ctx, fmt.Sprintf("导出任务 %d 的结果为JSON", taskID))
+
+	// 获取扫描结果
+	result, err := a.jsonTaskManager.GetTaskResult(taskID)
+	if err != nil {
+		return "", fmt.Errorf("failed to get task result: %w", err)
+	}
+
+	// 获取HTTP请求日志
+	httpLogs, err := a.jsonTaskManager.GetHTTPRequestLogs(taskID)
+	if err != nil {
+		runtime.LogWarning(a.ctx, fmt.Sprintf("获取HTTP日志失败: %v", err))
+		httpLogs = []*scanner.HTTPRequestLog{} // 使用空列表
+	}
+
+	// 组合完整的导出数据
+	exportData := map[string]interface{}{
+		"task_result":  result,
+		"http_logs":    httpLogs,
+		"exported_at":  time.Now().Format("2006-01-02 15:04:05"),
+		"export_version": "1.0",
+	}
+
+	// 打开文件选择对话框
+	defaultFilename := fmt.Sprintf("扫描结果_%s_%d.json", result.TaskName, taskID)
+	savePath, err := runtime.SaveFileDialog(a.ctx, runtime.SaveDialogOptions{
+		DefaultFilename: defaultFilename,
+		Title:           "导出扫描结果",
+		Filters: []runtime.FileFilter{
+			{DisplayName: "JSON Files (*.json)", Pattern: "*.json"},
+		},
+	})
+
+	if err != nil || savePath == "" {
+		return "", fmt.Errorf("用户取消导出")
+	}
+
+	// 序列化为JSON
+	jsonData, err := json.MarshalIndent(exportData, "", "  ")
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal data: %w", err)
+	}
+
+	// 写入文件
+	if err := os.WriteFile(savePath, jsonData, 0644); err != nil {
+		return "", fmt.Errorf("failed to write file: %w", err)
+	}
+
+	runtime.LogInfo(a.ctx, fmt.Sprintf("✅ 导出成功: %s", savePath))
+	return savePath, nil
+}
+
+// TestSinglePOCParams represents parameters for testing a single POC
+type TestSinglePOCParams struct {
+	TemplateContent string `json:"template_content"` // POC YAML content
+	Target          string `json:"target"`           // Target URL
+	Concurrency     int    `json:"concurrency"`      // Concurrency level
+	RateLimit       int    `json:"rate_limit"`       // Rate limit
+	InteractshURL   string `json:"interactsh_url"`   // Interactsh server URL
+	InteractshToken string `json:"interactsh_token"` // Interactsh token
+	ProxyURL        string `json:"proxy_url"`        // Proxy server URL
+}
+
+// TestSinglePOC tests a single POC template with custom parameters
+func (a *App) TestSinglePOC(params TestSinglePOCParams) (map[string]interface{}, error) {
+	runtime.LogInfo(a.ctx, fmt.Sprintf("测试单个POC: target=%s", params.Target))
+
+	if params.TemplateContent == "" {
+		return nil, fmt.Errorf("模板内容不能为空")
+	}
+
+	if params.Target == "" {
+		return nil, fmt.Errorf("目标URL不能为空")
+	}
+
+	// Normalize target URL - add protocol if missing
+	target := params.Target
+	if !strings.HasPrefix(target, "http://") && !strings.HasPrefix(target, "https://") {
+		// Check if it looks like a host:port format
+		if strings.Contains(target, ":") && !strings.Contains(target, "://") {
+			// For host:port format, try to determine protocol
+			// Default to http for common web ports, otherwise use the target as-is
+			parts := strings.Split(target, ":")
+			if len(parts) == 2 {
+				port := parts[1]
+				switch port {
+				case "80", "8080", "8000", "3000", "5000":
+					target = "http://" + target
+				case "443", "8443":
+					target = "https://" + target
+				default:
+					// For other ports like Redis (6379), keep as-is without protocol
+					// Nuclei can handle raw host:port for network protocols
+				}
+			}
+		} else {
+			// Plain hostname, default to http
+			target = "http://" + target
+		}
+	}
+
+	runtime.LogInfo(a.ctx, fmt.Sprintf("标准化目标: %s -> %s", params.Target, target))
+
+	// Create temporary template file
+	tmpDir := filepath.Join(os.TempDir(), "wepoc-poc-test")
+	if err := os.MkdirAll(tmpDir, 0755); err != nil {
+		return nil, fmt.Errorf("无法创建临时目录: %w", err)
+	}
+
+	tmpFile := filepath.Join(tmpDir, fmt.Sprintf("test-poc-%d.yaml", time.Now().UnixNano()))
+	if err := os.WriteFile(tmpFile, []byte(params.TemplateContent), 0644); err != nil {
+		return nil, fmt.Errorf("无法创建临时模板文件: %w", err)
+	}
+	defer os.Remove(tmpFile)
+
+	// Build nuclei command arguments
+	args := []string{
+		"-t", tmpFile,
+		"-u", target,
+		"-jsonl", // Use JSONL format (newer Nuclei versions)
+	}
+
+	// Add concurrency
+	if params.Concurrency > 0 {
+		args = append(args, "-c", fmt.Sprintf("%d", params.Concurrency))
+	}
+
+	// Add rate limit
+	if params.RateLimit > 0 {
+		args = append(args, "-rl", fmt.Sprintf("%d", params.RateLimit))
+	}
+
+	// Add interactsh configuration
+	if params.InteractshURL != "" {
+		args = append(args, "-iserver", params.InteractshURL)
+	}
+	if params.InteractshToken != "" {
+		args = append(args, "-itoken", params.InteractshToken)
+	}
+
+	// Add proxy
+	if params.ProxyURL != "" {
+		args = append(args, "-proxy", params.ProxyURL)
+	}
+
+	runtime.LogInfo(a.ctx, fmt.Sprintf("Nuclei命令: %s %s", a.config.NucleiPath, strings.Join(args, " ")))
+
+	// Execute nuclei command
+	cmd := exec.Command(a.config.NucleiPath, args...)
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+
+	// Set timeout to 5 minutes
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	defer cancel()
+
+	if err := cmd.Start(); err != nil {
+		return nil, fmt.Errorf("无法启动Nuclei: %w", err)
+	}
+
+	// Wait for completion or timeout
+	done := make(chan error, 1)
+	go func() {
+		done <- cmd.Wait()
+	}()
+
+	var execErr error
+	select {
+	case <-ctx.Done():
+		cmd.Process.Kill()
+		return nil, fmt.Errorf("测试超时（5分钟）")
+	case execErr = <-done:
+		// Don't return error immediately, check output first
+	}
+
+	// Get outputs
+	stdoutOutput := stdout.String()
+	stderrOutput := stderr.String()
+
+	runtime.LogInfo(a.ctx, fmt.Sprintf("Nuclei stdout length: %d bytes", len(stdoutOutput)))
+	runtime.LogInfo(a.ctx, fmt.Sprintf("Nuclei stderr length: %d bytes", len(stderrOutput)))
+
+	if stderrOutput != "" {
+		runtime.LogWarning(a.ctx, fmt.Sprintf("Nuclei stderr: %s", stderrOutput))
+	}
+
+	if stdoutOutput != "" {
+		runtime.LogInfo(a.ctx, fmt.Sprintf("Nuclei stdout: %s", stdoutOutput))
+	} else {
+		runtime.LogWarning(a.ctx, "Nuclei stdout is empty")
+	}
+
+	if execErr != nil {
+		runtime.LogError(a.ctx, fmt.Sprintf("Nuclei exit error: %v", execErr))
+	}
+
+	// Parse output
+	output := stdout.String()
+	lines := strings.Split(output, "\n")
+
+	var results []map[string]interface{}
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+
+		var result map[string]interface{}
+		if err := json.Unmarshal([]byte(line), &result); err == nil {
+			results = append(results, result)
+		}
+	}
+
+	// Build response
+	response := map[string]interface{}{
+		"success":       execErr == nil,
+		"results_count": len(results),
+		"results":       results,
+		"raw_output":    output,
+		"stderr":        stderrOutput,
+	}
+
+	if execErr != nil {
+		// Check if it's just "no results" (exit code 2) or a real error
+		exitCode := -1
+		if exitError, ok := execErr.(*exec.ExitError); ok {
+			exitCode = exitError.ExitCode()
+		}
+
+		runtime.LogInfo(a.ctx, fmt.Sprintf("Nuclei exit code: %d", exitCode))
+
+		// Exit code 2 often means "no vulnerabilities found" in Nuclei
+		// Only treat it as error if we have no output at all
+		if exitCode == 2 && (len(results) > 0 || stdoutOutput != "") {
+			// This is likely just "no vulnerabilities found"
+			response["success"] = true
+			if len(results) > 0 {
+				response["message"] = fmt.Sprintf("发现 %d 个漏洞", len(results))
+			} else {
+				response["message"] = "测试完成，未发现漏洞"
+			}
+			response["warning"] = "Nuclei 返回退出码 2（通常表示未发现漏洞）"
+		} else if len(results) > 0 {
+			// We have results despite error
+			response["message"] = fmt.Sprintf("测试完成（有警告），发现 %d 个漏洞", len(results))
+			response["warning"] = fmt.Sprintf("Nuclei 退出码 %d: %v", exitCode, execErr)
+		} else {
+			// Real error - no output and error
+			response["success"] = false
+			response["message"] = "测试失败"
+			response["error"] = fmt.Sprintf("退出码 %d: %v", exitCode, execErr)
+			if stderrOutput != "" {
+				response["error_detail"] = stderrOutput
+			} else if stdoutOutput != "" {
+				response["error_detail"] = "标准输出: " + stdoutOutput
+			}
+			runtime.LogError(a.ctx, fmt.Sprintf("❌ Nuclei测试失败: 退出码 %d, stdout: %s, stderr: %s", exitCode, stdoutOutput, stderrOutput))
+			return response, fmt.Errorf("Nuclei执行失败 (退出码 %d): %v\nStdout: %s\nStderr: %s", exitCode, execErr, stdoutOutput, stderrOutput)
+		}
+	} else {
+		if len(results) == 0 {
+			response["message"] = "未发现漏洞"
+		} else {
+			response["message"] = fmt.Sprintf("发现 %d 个漏洞", len(results))
+		}
+	}
+
+	runtime.LogInfo(a.ctx, fmt.Sprintf("✅ 测试完成: %s", response["message"]))
+	return response, nil
+}
+
+// SavePOCTemplate saves modified POC template content to file
+func (a *App) SavePOCTemplate(templatePath string, content string) error {
+	runtime.LogInfo(a.ctx, fmt.Sprintf("保存POC模板: %s", templatePath))
+
+	if templatePath == "" {
+		return fmt.Errorf("模板路径不能为空")
+	}
+
+	if content == "" {
+		return fmt.Errorf("模板内容不能为空")
+	}
+
+	// Validate template path is within POC directory
+	pocDir := a.config.POCDirectory
+	absTemplatePath, err := filepath.Abs(templatePath)
+	if err != nil {
+		return fmt.Errorf("无法解析模板路径: %w", err)
+	}
+
+	absPOCDir, err := filepath.Abs(pocDir)
+	if err != nil {
+		return fmt.Errorf("无法解析POC目录: %w", err)
+	}
+
+	if !strings.HasPrefix(absTemplatePath, absPOCDir) {
+		return fmt.Errorf("模板路径必须在POC目录内")
+	}
+
+	// Backup original file
+	backupPath := templatePath + ".backup." + time.Now().Format("20060102150405")
+	if err := copyFile(templatePath, backupPath); err != nil {
+		runtime.LogWarning(a.ctx, fmt.Sprintf("无法创建备份文件: %v", err))
+	} else {
+		runtime.LogInfo(a.ctx, fmt.Sprintf("已创建备份: %s", backupPath))
+	}
+
+	// Write new content
+	if err := os.WriteFile(templatePath, []byte(content), 0644); err != nil {
+		return fmt.Errorf("无法保存模板文件: %w", err)
+	}
+
+	runtime.LogInfo(a.ctx, "✅ POC模板保存成功")
+	return nil
+}
+
+// copyFile copies a file from src to dst
+func copyFile(src, dst string) error {
+	data, err := os.ReadFile(src)
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(dst, data, 0644)
+}
+
+// SaveCSVFile opens a save dialog and returns the selected file path
+func (a *App) SaveCSVFile(defaultFilename string, csvContent string) (string, error) {
+	runtime.LogInfo(a.ctx, fmt.Sprintf("打开保存对话框: %s", defaultFilename))
+
+	// Open save file dialog
+	savePath, err := runtime.SaveFileDialog(a.ctx, runtime.SaveDialogOptions{
+		DefaultFilename: defaultFilename,
+		Title:           "导出 CSV 文件",
+		Filters: []runtime.FileFilter{
+			{DisplayName: "CSV 文件 (*.csv)", Pattern: "*.csv"},
+			{DisplayName: "所有文件 (*.*)", Pattern: "*.*"},
+		},
+	})
+
+	if err != nil || savePath == "" {
+		return "", fmt.Errorf("用户取消保存")
+	}
+
+	// Add BOM for Excel Chinese support
+	BOM := "\uFEFF"
+	content := BOM + csvContent
+
+	// Write file
+	if err := os.WriteFile(savePath, []byte(content), 0644); err != nil {
+		return "", fmt.Errorf("保存文件失败: %w", err)
+	}
+
+	runtime.LogInfo(a.ctx, fmt.Sprintf("✅ CSV文件保存成功: %s", savePath))
+	return savePath, nil
 }

@@ -63,6 +63,33 @@ export interface NucleiResult {
   'curl-command'?: string;
 }
 
+export interface NucleiAdvancedConfig {
+  // 线程配置
+  concurrency: number;
+  bulk_size: number;
+  rate_limit: number;
+  rate_limit_minute: number;
+  
+  // 代理配置
+  proxy_enabled: boolean;
+  proxy_url: string;
+  proxy_list: string[];
+  proxy_internal: boolean;
+  
+  // DNS/OAST配置
+  interactsh_enabled: boolean;
+  interactsh_server: string;
+  interactsh_token: string;
+  interactsh_disable: boolean;
+  
+  // 其他选项
+  retries: number;
+  max_host_error: number;
+  disable_update_check: boolean;
+  follow_redirects: boolean;
+  max_redirects: number;
+}
+
 export interface Config {
   poc_directory: string;
   results_dir: string;
@@ -70,6 +97,7 @@ export interface Config {
   nuclei_path: string;
   max_concurrency: number;
   timeout: number;
+  nuclei_config: NucleiAdvancedConfig;
 }
 
 export interface ScanLog {
@@ -86,7 +114,7 @@ export interface ScanLog {
 
 export interface ScanEvent {
   task_id: number;
-  event_type: 'progress' | 'log' | 'vuln_found' | 'completed' | 'error';
+  event_type: 'progress' | 'log' | 'vuln_found' | 'completed' | 'error' | 'http';
   data: any;
   timestamp: string;
 }
@@ -98,6 +126,20 @@ export interface ScanProgress {
   found_vulns: number;
   percentage: number;
   status: string;
+  current_template: string;
+  current_target: string;
+  total_templates: number;
+  completed_templates: number;
+  scanned_templates: number;
+  failed_templates: number;
+  filtered_templates?: number; // 被Nuclei过滤的模板数量
+  skipped_templates?: number;  // 被跳过的模板数量
+  current_index: number;
+  selected_templates: string[];
+  scanned_template_ids: string[];
+  failed_template_ids: string[];
+  filtered_template_ids?: string[]; // 被过滤的模板ID列表
+  skipped_template_ids?: string[];  // 被跳过的模板ID列表
 }
 
 export interface ScanLogEntry {
@@ -146,5 +188,33 @@ export interface TaskResult {
   vulnerabilities: NucleiResult[];
   summary: Record<string, any>;
   created_at: string;
+
+  // 新增：详细统计信息
+  scanned_templates?: number;       // 实际扫描的模板数量
+  filtered_templates?: number;      // 被Nuclei过滤的模板数量
+  skipped_templates?: number;       // 被跳过的模板数量
+  failed_templates?: number;        // 扫描失败的模板数量
+  filtered_template_ids?: string[]; // 被过滤的模板ID列表
+  skipped_template_ids?: string[];  // 被跳过的模板ID列表
+  failed_template_ids?: string[];   // 失败的模板ID列表
+  scanned_template_ids?: string[];  // 已扫描的模板ID列表
+  http_requests?: number;           // 实际HTTP请求数量
+}
+
+// HTTP请求日志 - 用于前端表格展示每个HTTP请求
+export interface HTTPRequestLog {
+  id: number;                   // 请求序号
+  task_id: number;              // 所属任务ID
+  timestamp: string;            // 请求时间
+  template_id: string;          // POC模板ID
+  template_name: string;        // POC模板名称
+  severity: string;             // 严重程度
+  target: string;               // 目标URL
+  method: string;               // HTTP方法（GET/POST等）
+  status_code: number;          // HTTP状态码
+  is_vuln_found: boolean;       // 是否发现漏洞
+  request: string;              // 完整请求包
+  response: string;             // 完整响应包
+  duration_ms: number;          // 请求耗时（毫秒）
 }
 

@@ -61,6 +61,17 @@ type TaskResult struct {
 	Vulnerabilities   []*models.NucleiResult `json:"vulnerabilities"`
 	Summary           map[string]interface{} `json:"summary"`
 	CreatedAt         time.Time              `json:"created_at"`
+
+	// 新增：详细统计信息
+	ScannedTemplates    int      `json:"scanned_templates"`      // 实际扫描的模板数量
+	FilteredTemplates   int      `json:"filtered_templates"`     // 被Nuclei过滤的模板数量
+	SkippedTemplates    int      `json:"skipped_templates"`      // 被跳过的模板数量
+	FailedTemplates     int      `json:"failed_templates"`       // 扫描失败的模板数量
+	FilteredTemplateIDs []string `json:"filtered_template_ids"`  // 被过滤的模板ID列表
+	SkippedTemplateIDs  []string `json:"skipped_template_ids"`   // 被跳过的模板ID列表
+	FailedTemplateIDs   []string `json:"failed_template_ids"`    // 失败的模板ID列表
+	ScannedTemplateIDs  []string `json:"scanned_template_ids"`   // 已扫描的模板ID列表
+	HTTPRequests        int      `json:"http_requests"`          // 实际HTTP请求数量
 }
 
 // NewJSONTaskManager creates a new JSON-based task manager
@@ -188,10 +199,45 @@ func (tm *JSONTaskManager) StartTask(taskID int64) error {
 	task.StartTime = time.Now()
 	task.UpdatedAt = time.Now()
 
+	// 重置任务的进度数据（清零）
+	task.CompletedRequests = 0
+	task.FoundVulns = 0
+
 	// Save updated task configuration
 	if err := tm.saveTaskConfig(task); err != nil {
 		return fmt.Errorf("failed to save task config: %w", err)
 	}
+
+	// 发送初始化的进度事件到前端，清零旧数据
+	fmt.Printf("🔄 任务 %d 启动，发送初始化进度事件（清零）\n", taskID)
+	initialProgress := &ScanProgress{
+		TaskID:              taskID,
+		TotalRequests:       task.TotalRequests,
+		CompletedRequests:   0,
+		FoundVulns:          0,
+		Percentage:          0,
+		Status:              "running",
+		CurrentTemplate:     "",
+		CurrentTarget:       "",
+		TotalTemplates:      len(task.POCs),
+		CompletedTemplates:  0,
+		ScannedTemplates:    0,
+		FailedTemplates:     0,
+		FilteredTemplates:   0,
+		SkippedTemplates:    0,
+		CurrentIndex:        0,
+		SelectedTemplates:   task.POCs,
+		ScannedTemplateIDs:  []string{},
+		FailedTemplateIDs:   []string{},
+		FilteredTemplateIDs: []string{},
+		SkippedTemplateIDs:  []string{},
+	}
+
+	tm.emitEvent(taskID, &ScanEvent{
+		TaskID:    taskID,
+		EventType: "progress",
+		Data:      initialProgress,
+	})
 
 	// Start scanning in background
 	go tm.runScanTask(task)
@@ -288,6 +334,14 @@ func (tm *JSONTaskManager) runScanTask(task *TaskConfig) {
 					task.FoundVulns = progress.FoundVulns
 					task.Status = progress.Status
 					task.UpdatedAt = time.Now()
+
+					// 如果任务完成，设置结束时间
+					if progress.Status == "completed" || progress.Status == "failed" {
+						now := time.Now()
+						task.EndTime = &now
+						fmt.Printf("✅ 任务 %d 完成，设置EndTime并保存状态: %s\n", task.ID, progress.Status)
+					}
+
 					tm.saveTaskConfig(task)
 					tm.mu.Unlock()
 
@@ -531,4 +585,43 @@ func (tm *JSONTaskManager) saveTaskResult(result *TaskResult) error {
 	// Create result file path
 	resultFile := filepath.Join(tm.resultsDir, fmt.Sprintf("task_%d_result.json", result.TaskID))
 	return os.WriteFile(resultFile, data, 0644)
+}
+
+// SaveHTTPRequestLogs saves HTTP request logs for a task
+func (tm *JSONTaskManager) SaveHTTPRequestLogs(taskID int64, logs []*HTTPRequestLog) error {
+	data, err := json.MarshalIndent(logs, "", "  ")
+	if err != nil {
+		return fmt.Errorf("failed to marshal HTTP logs: %w", err)
+	}
+
+	httpLogsFile := filepath.Join(tm.logsDir, fmt.Sprintf("task_%d_http_logs.json", taskID))
+	if err := os.WriteFile(httpLogsFile, data, 0644); err != nil {
+		return fmt.Errorf("failed to write HTTP logs: %w", err)
+	}
+
+	fmt.Printf("✅ HTTP请求日志已保存: %s (%d 条记录)\n", httpLogsFile, len(logs))
+	return nil
+}
+
+// GetHTTPRequestLogs returns HTTP request logs for a task
+func (tm *JSONTaskManager) GetHTTPRequestLogs(taskID int64) ([]*HTTPRequestLog, error) {
+	httpLogsFile := filepath.Join(tm.logsDir, fmt.Sprintf("task_%d_http_logs.json", taskID))
+
+	// Check if file exists
+	if _, err := os.Stat(httpLogsFile); os.IsNotExist(err) {
+		// Return empty list if file doesn't exist
+		return []*HTTPRequestLog{}, nil
+	}
+
+	data, err := os.ReadFile(httpLogsFile)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read HTTP logs: %w", err)
+	}
+
+	var logs []*HTTPRequestLog
+	if err := json.Unmarshal(data, &logs); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal HTTP logs: %w", err)
+	}
+
+	return logs, nil
 }

@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
-import { Card, Typography, Form, Input, InputNumber, Button, message, Space, Alert, Progress, Row, Col, Statistic, Divider, Tooltip, Tag } from 'antd';
+import { Card, Typography, Form, Input, InputNumber, Button, message, Space, Alert, Progress, Row, Col, Statistic, Divider, Tooltip, Tag, Switch } from 'antd';
 import { SaveOutlined, FolderOpenOutlined, ReloadOutlined, CheckCircleOutlined, CloseCircleOutlined, WarningOutlined, InfoCircleOutlined, PlayCircleOutlined, FileOutlined, SettingOutlined, GithubOutlined, StarOutlined } from '@ant-design/icons';
 import { Config } from '../../types';
-import * as api from '../../services/api';
+import { api } from '../../services/api';
 
 const { Title, Text, Paragraph } = Typography;
 
@@ -13,6 +13,10 @@ const Settings = () => {
   const [testingNuclei, setTestingNuclei] = useState(false);
   const [nucleiStatus, setNucleiStatus] = useState<{ valid: boolean; version: string } | null>(null);
   const [currentNucleiPath, setCurrentNucleiPath] = useState<string>('');
+  
+  // 代理测试状态
+  const [testingProxies, setTestingProxies] = useState(false);
+  const [proxyTestResults, setProxyTestResults] = useState<any>(null);
   
   // 导入进度状态
   const [importing, setImporting] = useState(false);
@@ -70,7 +74,20 @@ const Settings = () => {
     try {
       const cfg = await api.getConfig();
       setConfig(cfg);
-      form.setFieldsValue(cfg);
+      
+      // 确保代理配置有默认值，代理默认关闭
+      const configWithDefaults = {
+        ...cfg,
+        nuclei_config: {
+          ...cfg.nuclei_config,
+          proxy_enabled: cfg.nuclei_config?.proxy_enabled || false,
+          proxy_internal: cfg.nuclei_config?.proxy_internal || false,
+          proxy_url: cfg.nuclei_config?.proxy_url || '',
+          proxy_list: cfg.nuclei_config?.proxy_list || []
+        }
+      };
+      
+      form.setFieldsValue(configWithDefaults);
       
       // 设置当前 nuclei 路径
       if (cfg.nuclei_path) {
@@ -92,6 +109,52 @@ const Settings = () => {
       }
     } catch (error: any) {
       message.error(`加载配置失败: ${error.message}`);
+    }
+  };
+
+  const handleTestProxies = async () => {
+    const proxyUrl = form.getFieldValue(['nuclei_config', 'proxy_url']);
+    const proxyListText = form.getFieldValue(['nuclei_config', 'proxy_list']);
+    
+    // 构建代理列表
+    let proxyList: string[] = [];
+    
+    if (proxyUrl && proxyUrl.trim()) {
+      proxyList.push(proxyUrl.trim());
+    }
+    
+    if (proxyListText && proxyListText.trim()) {
+      const listProxies = proxyListText.split('\n')
+        .map((line: string) => line.trim())
+        .filter((line: string) => line.length > 0);
+      proxyList = proxyList.concat(listProxies);
+    }
+    
+    if (proxyList.length === 0) {
+      message.warning('请先配置代理服务器');
+      return;
+    }
+
+    setTestingProxies(true);
+    setProxyTestResults(null);
+    
+    try {
+      const results = await api.testProxies(proxyList);
+      setProxyTestResults(results);
+      
+      if (results && results.summary) {
+        const { available, failed, total } = results.summary;
+        if (available > 0) {
+          message.success(`代理测试完成：${available}/${total} 个代理可用`);
+        } else {
+          message.error(`代理测试失败：所有 ${total} 个代理都不可用`);
+        }
+      }
+    } catch (error: any) {
+      message.error(`代理测试失败: ${error.message}`);
+      setProxyTestResults(null);
+    } finally {
+      setTestingProxies(false);
     }
   };
 
@@ -276,7 +339,13 @@ const Settings = () => {
         <Text type="secondary" style={{ fontSize: 12 }}>配置 POC 模板路径、导入规则和系统参数</Text>
       </div>
       
-      <div style={{ padding: '0 24px', maxWidth: 1200, margin: '0 auto' }}>
+      <div style={{ 
+        padding: '0 24px', 
+        maxWidth: 1400, 
+        margin: '0 auto',
+        height: 'calc(100vh - 80px)',
+        overflowY: 'auto'
+      }}>
         {/* 模板导入进度卡片 */}
         {importing && (
           <Card 
@@ -338,7 +407,11 @@ const Settings = () => {
           </Card>
         )}
 
-        {/* 主配置卡片 */}
+        {/* 主要布局：左侧设置区域 + 右侧项目信息面板 */}
+        <Row gutter={[24, 16]}>
+          {/* 左侧主要设置区域 */}
+          <Col xs={24} lg={18}>
+            {/* 主配置卡片 */}
         <Card 
           title={
             <Space>
@@ -605,19 +678,261 @@ const Settings = () => {
 
             <Divider />
 
+            {/* 代理配置部分 */}
+            <Title level={5} style={{ marginBottom: 16 }}>
+              <Space>
+                <SettingOutlined />
+                <span>代理配置</span>
+              </Space>
+            </Title>
+
+            <Row gutter={16}>
+              <Col xs={24} sm={8}>
+                <Form.Item
+                  label={<Text strong>启用代理</Text>}
+                  name={['nuclei_config', 'proxy_enabled']}
+                  valuePropName="checked"
+                >
+                  <Switch 
+                    checkedChildren="开启" 
+                    unCheckedChildren="关闭"
+                    size="default"
+                  />
+                </Form.Item>
+              </Col>
+              <Col xs={24} sm={8}>
+                <Form.Item
+                  label={<Text strong>代理内部请求</Text>}
+                  name={['nuclei_config', 'proxy_internal']}
+                  valuePropName="checked"
+                >
+                  <Switch 
+                    checkedChildren="是" 
+                    unCheckedChildren="否"
+                    size="default"
+                  />
+                </Form.Item>
+              </Col>
+            </Row>
+
+            <Form.Item
+              label={
+                <Space>
+                  <Text strong>代理服务器 URL</Text>
+                  <Tooltip title="支持 HTTP/HTTPS/SOCKS5 代理，格式：http://proxy:port 或 socks5://proxy:port">
+                    <InfoCircleOutlined style={{ color: '#8c8c8c' }} />
+                  </Tooltip>
+                </Space>
+              }
+              name={['nuclei_config', 'proxy_url']}
+            >
+              <Input 
+                placeholder="http://127.0.0.1:8080 或 socks5://127.0.0.1:1080" 
+                size="large"
+              />
+            </Form.Item>
+
+            <Form.Item
+              label={
+                <Space>
+                  <Text strong>代理服务器列表</Text>
+                  <Tooltip title="多个代理地址，每行一个。系统会自动轮换使用">
+                    <InfoCircleOutlined style={{ color: '#8c8c8c' }} />
+                  </Tooltip>
+                </Space>
+              }
+              name={['nuclei_config', 'proxy_list']}
+            >
+              <Input.TextArea 
+                placeholder="http://127.0.0.1:8080&#10;http://127.0.0.1:8081&#10;socks5://127.0.0.1:1080"
+                rows={4}
+                size="large"
+              />
+            </Form.Item>
+
+            {/* 代理测试按钮 */}
+            <Form.Item>
+              <Button
+                type="default"
+                icon={<PlayCircleOutlined />}
+                onClick={handleTestProxies}
+                loading={testingProxies}
+                size="large"
+              >
+                {testingProxies ? '正在测试代理...' : '测试代理连接'}
+              </Button>
+            </Form.Item>
+
+            {/* 代理测试结果显示 */}
+            {proxyTestResults && (
+              <Alert
+                message={
+                  <Space direction="vertical" style={{ width: '100%' }}>
+                    <Space>
+                      <Text strong>代理测试结果</Text>
+                      <Tag color={proxyTestResults.summary.available > 0 ? 'green' : 'red'}>
+                        {proxyTestResults.summary.available}/{proxyTestResults.summary.total} 可用
+                      </Tag>
+                    </Space>
+                    <div style={{ maxHeight: 200, overflowY: 'auto' }}>
+                      {proxyTestResults.results.map((result: any, index: number) => (
+                        <div key={index} style={{ marginBottom: 8, fontSize: 12 }}>
+                          <Space>
+                            {result.available ? (
+                              <CheckCircleOutlined style={{ color: '#52c41a' }} />
+                            ) : (
+                              <CloseCircleOutlined style={{ color: '#ff4d4f' }} />
+                            )}
+                            <Text code style={{ fontSize: 11 }}>{result.url}</Text>
+                            {result.available && (
+                              <Tag color="blue" style={{ fontSize: 10 }}>
+                                {result.response_time}ms
+                              </Tag>
+                            )}
+                            {result.error && (
+                              <Text type="secondary" style={{ fontSize: 10 }}>
+                                {result.error}
+                              </Text>
+                            )}
+                          </Space>
+                        </div>
+                      ))}
+                    </div>
+                  </Space>
+                }
+                type={proxyTestResults.summary.available > 0 ? 'success' : 'error'}
+                style={{ marginBottom: 16 }}
+                showIcon={false}
+              />
+            )}
+
+            <Divider />
+
+            {/* DNS外带 (Interactsh) 配置部分 */}
+            <Title level={5} style={{ marginBottom: 16 }}>
+              <Space>
+                <SettingOutlined />
+                <span>DNS 外带 (Interactsh) 配置</span>
+              </Space>
+            </Title>
+
+            <Alert
+              message="DNS外带检测功能说明"
+              description="Interactsh 是 Nuclei 的带外数据通信服务，用于检测盲注等无法直接获得响应的漏洞。默认使用 ProjectDiscovery 的公共服务器，也可以配置私有服务器。"
+              type="info"
+              showIcon
+              style={{ marginBottom: 16 }}
+            />
+
+            <Row gutter={16}>
+              <Col xs={24} sm={8}>
+                <Form.Item
+                  label={
+                    <Space>
+                      <Text strong>启用 Interactsh</Text>
+                      <Tooltip title="开启 DNS 外带检测功能，用于检测盲注漏洞">
+                        <InfoCircleOutlined style={{ color: '#8c8c8c' }} />
+                      </Tooltip>
+                    </Space>
+                  }
+                  name={['nuclei_config', 'interactsh_enabled']}
+                  valuePropName="checked"
+                >
+                  <Switch
+                    checkedChildren="开启"
+                    unCheckedChildren="关闭"
+                    size="default"
+                  />
+                </Form.Item>
+              </Col>
+              <Col xs={24} sm={8}>
+                <Form.Item
+                  label={
+                    <Space>
+                      <Text strong>完全禁用 Interactsh</Text>
+                      <Tooltip title="完全禁用 Interactsh 功能，不使用任何外带服务（包括默认服务）">
+                        <InfoCircleOutlined style={{ color: '#8c8c8c' }} />
+                      </Tooltip>
+                    </Space>
+                  }
+                  name={['nuclei_config', 'interactsh_disable']}
+                  valuePropName="checked"
+                >
+                  <Switch
+                    checkedChildren="禁用"
+                    unCheckedChildren="允许"
+                    size="default"
+                  />
+                </Form.Item>
+              </Col>
+            </Row>
+
+            <Form.Item
+              label={
+                <Space>
+                  <Text strong>自定义 Interactsh 服务器</Text>
+                  <Tooltip title="留空则使用 ProjectDiscovery 的默认服务器。如需隐私保护，可部署私有服务器">
+                    <InfoCircleOutlined style={{ color: '#8c8c8c' }} />
+                  </Tooltip>
+                </Space>
+              }
+              name={['nuclei_config', 'interactsh_server']}
+            >
+              <Input
+                placeholder="https://interact.projectdiscovery.io 或自建服务器地址"
+                size="large"
+              />
+            </Form.Item>
+
+            <Form.Item
+              label={
+                <Space>
+                  <Text strong>Interactsh 认证 Token</Text>
+                  <Tooltip title="如果使用需要认证的私有 Interactsh 服务器，请填入认证 Token">
+                    <InfoCircleOutlined style={{ color: '#8c8c8c' }} />
+                  </Tooltip>
+                </Space>
+              }
+              name={['nuclei_config', 'interactsh_token']}
+            >
+              <Input.Password
+                placeholder="认证 Token（可选）"
+                size="large"
+              />
+            </Form.Item>
+
+            <Alert
+              message={
+                <Space direction="vertical" size="small" style={{ width: '100%' }}>
+                  <Text strong>使用建议</Text>
+                  <ul style={{ margin: 0, paddingLeft: 20, fontSize: 12 }}>
+                    <li><Text type="secondary">默认情况下，Nuclei 会自动使用 ProjectDiscovery 的公共 Interactsh 服务</Text></li>
+                    <li><Text type="secondary">开启"启用 Interactsh"并配置自定义服务器，可使用私有部署</Text></li>
+                    <li><Text type="secondary">如需完全禁用（某些环境禁止外联），勾选"完全禁用 Interactsh"</Text></li>
+                    <li><Text type="secondary">私有服务器部署教程：<a href="https://github.com/projectdiscovery/interactsh" target="_blank" rel="noopener noreferrer">github.com/projectdiscovery/interactsh</a></Text></li>
+                  </ul>
+                </Space>
+              }
+              type="warning"
+              showIcon
+              style={{ marginBottom: 16 }}
+            />
+
+            <Divider />
+
             <Form.Item style={{ marginBottom: 0 }}>
               <Space size="middle">
-                <Button 
-                  type="primary" 
-                  htmlType="submit" 
-                  icon={<SaveOutlined />} 
+                <Button
+                  type="primary"
+                  htmlType="submit"
+                  icon={<SaveOutlined />}
                   loading={loading}
                   size="large"
                 >
                   保存设置
                 </Button>
-                <Button 
-                  onClick={() => form.resetFields()} 
+                <Button
+                  onClick={() => form.resetFields()}
                   size="large"
                 >
                   重置为默认值
@@ -626,37 +941,74 @@ const Settings = () => {
             </Form.Item>
           </Form>
         </Card>
-
-        {/* GitHub 信息卡片 */}
-        <Card title="项目信息" style={{ marginTop: 16 }}>
-          <div style={{ textAlign: 'center', padding: '20px 0' }}>
-            <h2 style={{ margin: '0 0 8px 0', color: '#1890ff' }}>wepoc</h2>
-            <p style={{ margin: '0 0 16px 0', color: '#666' }}>
-              wepoc - Nuclei 漏洞扫描器图形界面工具
-            </p>
-            <div style={{ marginBottom: 16 }}>
-              Github：https://github.com/cyber0s/wepoc
+            </Col>
+          
+          {/* 右侧项目信息面板 */}
+          <Col xs={24} lg={6}>
+            <div style={{ position: 'sticky', top: 80 }}>
+              <Card 
+                title={
+                  <Space>
+                    <GithubOutlined />
+                    <span>项目信息</span>
+                  </Space>
+                }
+                style={{ borderRadius: 8 }}
+              >
+                <div style={{ textAlign: 'center', padding: '16px 0' }}>
+                  <div style={{ marginBottom: 16 }}>
+                    <h3 style={{ margin: '0 0 8px 0', color: '#1890ff', fontSize: 18 }}>WePOC</h3>
+                    <Text type="secondary" style={{ fontSize: 13 }}>
+                      Nuclei 漏洞扫描器图形界面工具
+                    </Text>
+                  </div>
+                  
+                  <div style={{ marginBottom: 16 }}>
+                    <Space wrap size="small">
+                      <Tag color="blue" icon={<StarOutlined />}>Go</Tag>
+                      <Tag color="green" icon={<StarOutlined />}>React</Tag>
+                      <Tag color="purple" icon={<StarOutlined />}>Wails</Tag>
+                      <Tag color="orange" icon={<StarOutlined />}>Nuclei</Tag>
+                    </Space>
+                  </div>
+                  
+                  <Divider style={{ margin: '16px 0' }} />
+                  
+                  <div style={{ textAlign: 'left' }}>
+                    <div style={{ marginBottom: 8, fontSize: 12 }}>
+                      <Text strong>版本：</Text>
+                <Text type="secondary">1.3</Text>
+                    </div>
+                    <div style={{ marginBottom: 8, fontSize: 12 }}>
+                      <Text strong>许可证：</Text>
+                      <Text type="secondary">GPL-3.0</Text>
+                    </div>
+                    <div style={{ marginBottom: 8, fontSize: 12 }}>
+                      <Text strong>作者：</Text>
+                      <Text type="secondary">cyber0s</Text>
+                    </div>
+                    <div style={{ fontSize: 12 }}>
+                      <Text strong>Github：</Text>
+                      <br />
+                      <Text 
+                        type="secondary" 
+                        style={{ 
+                          fontSize: 11, 
+                          wordBreak: 'break-all',
+                          cursor: 'pointer',
+                          color: '#1890ff'
+                        }}
+                        onClick={() => window.open('https://github.com/cyber0s/wepoc', '_blank')}
+                      >
+                        github.com/cyber0s/wepoc
+                      </Text>
+                    </div>
+                  </div>
+                </div>
+              </Card>
             </div>
-            <div style={{ marginBottom: 16 }}>
-              <Tag color="blue" style={{ marginRight: 8 }}>Go</Tag>
-              <Tag color="green" style={{ marginRight: 8 }}>React</Tag>
-              <Tag color="purple" style={{ marginRight: 8 }}>Wails</Tag>
-              <Tag color="orange">Nuclei</Tag>
-            </div>
-            
-            <div style={{ fontSize: '12px', color: '#999' }}>
-              <p style={{ margin: '4px 0' }}>
-                <strong>版本:</strong> 1.0.0
-              </p>
-              <p style={{ margin: '4px 0' }}>
-                <strong>许可证:</strong> GPL-3.0
-              </p>
-              <p style={{ margin: '4px 0' }}>
-                <strong>作者:</strong> cyber0s
-              </p>
-            </div>
-          </div>
-        </Card>
+          </Col>
+        </Row>
         
       </div>
     </div>

@@ -64,20 +64,20 @@
   /* 模板列表容器 - 可滚动 */
   .template-list-container {
     flex: 1;
-    overflow-y: auto;
-    overflow-x: hidden;
+    overflow: auto;
     background: white;
     margin: 0;
+    min-height: 0; /* 重要：让flex子元素能够正确收缩 */
   }
-  
+
   .template-list-container .ant-table-wrapper {
     height: 100%;
   }
-  
+
   .template-list-container .ant-table {
     font-size: 12px;
   }
-  
+
   .template-list-container .ant-table-thead > tr > th {
     position: sticky;
     top: 0;
@@ -87,7 +87,7 @@
     padding: 10px 12px;
     font-size: 12px;
   }
-  
+
   .template-list-container .ant-table-tbody > tr > td {
     padding: 8px 12px;
   }
@@ -209,23 +209,26 @@
     z-index: 1000;
   }
 
-  /* 强制下拉菜单显示 - 覆盖所有可能的隐藏规则 */
-  .template-management .ant-select-dropdown {
+  /* 分页下拉菜单特定样式 - 移除冲突的全局强制显示规则 */
+  .template-management .ant-pagination-options-size-changer .ant-select-dropdown {
     z-index: 9999 !important;
-    position: fixed !important;
-    visibility: visible !important;
-    opacity: 1 !important;
-    display: block !important;
+    position: absolute !important;
+    top: auto !important;
+    bottom: 100% !important;
+    margin-bottom: 4px !important;
   }
 
   /* 确保选择器容器不隐藏下拉菜单 */
   .template-management .ant-pagination-options-size-changer {
     overflow: visible !important;
+    position: relative;
   }
 
   .template-management .bottom-center {
     overflow: visible !important;
   }
+
+  /* 移除之前的冲突样式，让Ant Design自己管理下拉菜单的显示/隐藏状态 */
   
   .bottom-center .ant-pagination-total-text {
     font-size: 11px;
@@ -276,11 +279,6 @@
   /* 表格行悬停效果 */
   .template-list-container .ant-table-tbody > tr:hover > td {
     background-color: #f5f7fa;
-  }
-  
-  /* 确保表格内容不会被底部工具栏遮挡 */
-  .template-list-container .ant-table-body {
-    min-height: 100%;
   }
   
   /* 响应式调整 */

@@ -28,8 +28,7 @@ import {
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { Template } from '../../types';
-import * as api from '../../services/api';
-// import { EventsOn } from '../../wailsjs/runtime/runtime.js';
+import { api } from '../../services/api';
 import './Templates.css';
 
 const { Search } = Input;
@@ -38,6 +37,7 @@ const { Option } = Select;
 const Templates = () => {
   const navigate = useNavigate();
   const [templates, setTemplates] = useState<Template[]>([]);
+  const [totalTemplates, setTotalTemplates] = useState(0);
   const [loading, setLoading] = useState(false);
   const [selectedRows, setSelectedRows] = useState<Template[]>([]);
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
@@ -47,131 +47,44 @@ const Templates = () => {
   const [validationResult, setValidationResult] = useState<any>(null);
   const [showValidationModal, setShowValidationModal] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(50); // 默认50条/页
+  const [pageSize, setPageSize] = useState(100);  // 默认每页100条
   const [showTaskNameModal, setShowTaskNameModal] = useState(false);
   const [taskName, setTaskName] = useState('');
-  
-  // 导入进度相关状态
   const [importCount, setImportCount] = useState(0);
 
   // 过滤和分页逻辑
   const filteredTemplates = templates.filter(template => {
-    const matchesSearch = !searchKeyword || 
+    const matchesSearch = !searchKeyword ||
       template.name?.toLowerCase().includes(searchKeyword.toLowerCase()) ||
       template.tags?.toLowerCase().includes(searchKeyword.toLowerCase());
     const matchesSeverity = !severityFilter || template.severity === severityFilter;
     return matchesSearch && matchesSeverity;
   });
 
+  // 分页切片
   const paginatedTemplates = filteredTemplates.slice(
     (currentPage - 1) * pageSize,
     currentPage * pageSize
   );
 
-  const totalTemplates = filteredTemplates.length;
-
   useEffect(() => {
     loadTemplates();
-    // 检查POC模板可用性，如果没有则提示用户
-    checkPOCAvailability();
-
-    // 监听模板导入进度事件
-    const unsubscribe = api.onTemplateImportProgress((data: any) => {
-      if (data && data.data) {
-        // 如果导入完成，显示导入数量并刷新模板列表
-        if (data.data.status === '导入完成!') {
-          setImportCount(data.data.successful || 0);
-          loadTemplates();
-          // 只在手动导入时显示成功提示，避免自动导入时的重复提示
-          // message.success(`成功导入 ${data.data.successful || 0} 个模板`);
-        }
-      }
-    });
-
-    return () => {
-      if (unsubscribe) {
-        unsubscribe();
-      }
-    };
   }, []);
 
-  // 当模板加载完成后，恢复上次的选择状态
-  useEffect(() => {
-    if (templates.length === 0) return; // 等待模板加载完成
-    
-    const savedSelection = sessionStorage.getItem('selectedTemplates');
-    if (savedSelection) {
-      try {
-        const parsed = JSON.parse(savedSelection);
-        
-        // 兼容两种数据格式：
-        // 1. 来自扫描任务页面的简单数组格式: ["template1", "template2"]
-        // 2. 模板管理页面的对象格式: {rows: [], keys: []}
-        if (Array.isArray(parsed)) {
-          // 如果是数组格式（来自扫描任务页面），需要根据模板路径找到对应的模板对象
-          const matchedTemplates = templates.filter(template => 
-            parsed.includes(template.file_path)
-          );
-          setSelectedRows(matchedTemplates);
-          setSelectedRowKeys(matchedTemplates.map(t => t.id));
-        } else if (parsed && typeof parsed === 'object') {
-          // 如果是对象格式（模板管理页面自己的格式）
-          setSelectedRows(parsed.rows || []);
-          setSelectedRowKeys(parsed.keys || []);
-        }
-      } catch (e) {
-        console.error('Failed to restore selection:', e);
-        // 清除无效的sessionStorage数据
-        sessionStorage.removeItem('selectedTemplates');
-      }
-    }
-  }, [templates]); // 依赖templates，确保模板加载完成后再恢复选择状态
-
-  // 保存选择状态到sessionStorage
-  useEffect(() => {
-    if (selectedRows.length > 0) {
-      sessionStorage.setItem('selectedTemplates', JSON.stringify({
-        rows: selectedRows,
-        keys: selectedRowKeys,
-      }));
-    }
-  }, [selectedRows, selectedRowKeys]);
-
-  // 当搜索或过滤条件改变时，重置到第一页
+  // 当搜索或过滤条件变化时，重置到第一页
   useEffect(() => {
     setCurrentPage(1);
   }, [searchKeyword, severityFilter]);
 
-  // 检查是否有POC模板，如果没有则提示用户
-  const checkPOCAvailability = async () => {
-    try {
-      const templates = await api.getAllTemplates();
-      if (!templates || templates.length === 0) {
-        Modal.info({
-          title: '欢迎使用 wepoc',
-          content: (
-            <div>
-              <p>检测到您还没有导入任何 POC 模板。</p>
-              <p>请前往 <strong>设置</strong> 页面配置 Nuclei 路径和 POC 目录，然后导入模板。</p>
-              <p>或者点击下方的"导入模板"按钮手动导入。</p>
-            </div>
-          ),
-          okText: '前往设置',
-          onOk: () => navigate('/settings'),
-        });
-      }
-    } catch (error) {
-      console.error('检查POC模板失败:', error);
-    }
-  };
-
   const loadTemplates = async () => {
     setLoading(true);
     try {
-      const data = await api.getAllTemplates();
-      setTemplates(data || []);
-    } catch (error: any) {
-      message.error(`加载模板失败: ${error.message}`);
+      const result = await api.getAllTemplates();
+      setTemplates(result || []);
+      setTotalTemplates(result?.length || 0);
+    } catch (error) {
+      console.error('Failed to load templates:', error);
+      message.error('加载模板失败');
     } finally {
       setLoading(false);
     }
@@ -179,187 +92,90 @@ const Templates = () => {
 
   const handleImport = async () => {
     try {
-      const dir = await api.selectDirectory();
-      if (!dir) return;
-
-      setValidating(true);
-      const result = await api.preValidateTemplates(dir);
-
-      // Store validation result and show modal
-      setValidationResult(result);
-      setShowValidationModal(true);
-    } catch (error: any) {
-      message.error(`验证失败: ${error.message}`);
+      const directory = await api.selectDirectory();
+      if (directory) {
+        setValidating(true);
+        const result = await api.preValidateTemplates(directory);
+        setValidationResult(result);
+        setShowValidationModal(true);
+      }
+    } catch (error) {
+      console.error('Failed to import templates:', error);
+      message.error('导入模板失败');
     } finally {
       setValidating(false);
     }
   };
 
   const handleConfirmImport = async () => {
-    if (!validationResult || !validationResult.validTemplates) {
-      message.error('没有可导入的模板');
-      return;
-    }
-
     try {
-      setLoading(true);
-      const result = await api.confirmAndImportTemplates(validationResult.validTemplates);
-
-      // 设置导入数量并显示简单提示
-      setImportCount(result.validated);
-      message.success(`成功导入 ${result.validated} 个模板`);
-
-      setShowValidationModal(false);
-      await loadTemplates();
-    } catch (error: any) {
-      message.error(`导入失败: ${error.message}`);
-    } finally {
-      setLoading(false);
+      if (validationResult && validationResult.templates) {
+        const result = await api.confirmAndImportTemplates(validationResult.templates);
+        message.success(`成功导入 ${result.successful} 个模板`);
+        setShowValidationModal(false);
+        loadTemplates(); // 重新加载模板列表
+      }
+    } catch (error) {
+      console.error('Failed to confirm import:', error);
+      message.error('确认导入失败');
     }
   };
 
   const handleSearch = async () => {
-    setLoading(true);
-    try {
-      const data = await api.searchTemplates(searchKeyword, severityFilter);
-      setTemplates(data || []);
-    } catch (error: any) {
-      message.error(`Search failed: ${error.message}`);
-    } finally {
-      setLoading(false);
-    }
+    // 搜索逻辑已在filteredTemplates中实现
   };
-
 
   const handleClearAll = async () => {
     try {
       await api.clearAllTemplates();
-      message.success('All templates cleared');
-      await loadTemplates();
-      setSelectedRows([]);
-    } catch (error: any) {
-      message.error(`Clear failed: ${error.message}`);
+      message.success('已清空所有模板');
+      loadTemplates(); // 重新加载模板列表
+    } catch (error) {
+      console.error('Failed to clear all templates:', error);
+      message.error('清空模板失败');
     }
   };
 
   const handleStartScan = () => {
     if (selectedRows.length === 0) {
-      message.warning('Please select at least one template');
+      message.warning('请先选择要扫描的模板');
       return;
     }
-
-    // Show task name input modal
     setShowTaskNameModal(true);
   };
 
   const handleConfirmTaskName = () => {
-    // Generate task name if not provided
-    const finalTaskName = taskName.trim() || `POC扫描任务-${new Date().toLocaleString('zh-CN', {
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit'
-    }).replace(/\//g, '').replace(/:/g, '').replace(' ', '-')}`;
-    
-    // Navigate to scan tasks page with selected templates and task name
-    const templateIds = selectedRows.map(t => t.file_path);
-    sessionStorage.setItem('selectedTemplates', JSON.stringify(templateIds));
-    sessionStorage.setItem('taskName', finalTaskName);
-    sessionStorage.setItem('autoCreateTask', 'true'); // 标记需要自动创建任务
     setShowTaskNameModal(false);
-    setTaskName('');
-    navigate('/tasks');
-  };
-
-  const handleDownload = (record: Template) => {
-    message.info(`下载模板: ${record.template_id}`);
-    // TODO: 实现下载功能
-  };
-
-  const handleDelete = async (record: Template) => {
-    Modal.confirm({
-      title: '确认删除',
-      content: `确定要删除模板 "${record.template_id}" 吗？此操作将同时删除文件系统中的模板文件。`,
-      onOk: async () => {
-        try {
-          await api.deleteTemplate(record.template_id);
-          message.success('模板删除成功');
-          await loadTemplates();
-        } catch (error: any) {
-          message.error(`删除失败: ${error.message}`);
-        }
-      },
+    navigate('/tasks', { 
+      state: { 
+        selectedTemplates: selectedRows,
+        taskName: taskName || `扫描任务_${new Date().toLocaleString()}`
+      } 
     });
   };
 
-  const getSeverityColor = (severity: string) => {
-    const severityLower = severity?.toLowerCase() || '';
-    const colorMap: Record<string, string> = {
-      critical: '#ff4d4f',
-      high: '#ff7a45',
-      medium: '#ffa940',
-      low: '#ffc53d',
-      info: '#69c0ff',
-    };
-    return colorMap[severityLower] || '#d9d9d9';
+  const handleDownload = (record: Template) => {
+    console.log('Download template:', record);
   };
 
-  const columns = [
-    {
-      title: 'Template ID',
-      dataIndex: 'template_id',
-      key: 'template_id',
-      width: 200,
-      ellipsis: true,
-    },
-    {
-      title: 'Name',
-      dataIndex: 'name',
-      key: 'name',
-      ellipsis: true,
-    },
-    {
-      title: 'Severity',
-      dataIndex: 'severity',
-      key: 'severity',
-      width: 100,
-      render: (severity: string) => (
-        <Tag color={getSeverityColor(severity)}>{severity?.toUpperCase() || 'UNKNOWN'}</Tag>
-      ),
-    },
-    {
-      title: 'Author',
-      dataIndex: 'author',
-      key: 'author',
-      width: 150,
-      ellipsis: true,
-    },
-    {
-      title: 'Tags',
-      dataIndex: 'tags',
-      key: 'tags',
-      width: 200,
-      ellipsis: true,
-    },
-    {
-      title: 'Action',
-      key: 'action',
-      width: 100,
-      render: (_: any, record: Template) => (
-        <Popconfirm
-          title="Delete template?"
-          description="Are you sure to delete this template?"
-          onConfirm={() => handleDelete(record)}
-          okText="Yes"
-          cancelText="No"
-        >
-          <Button type="link" danger size="small" icon={<DeleteOutlined />}>
-            Delete
-          </Button>
-        </Popconfirm>
-      ),
-    },
-  ];
+  const handleDelete = async (record: Template) => {
+    try {
+      message.info('删除功能暂时不可用');
+    } catch (error) {
+      console.error('Failed to delete template:', error);
+      message.error('删除模板失败');
+    }
+  };
+
+  const getSeverityColor = (severity: string) => {
+    switch (severity?.toLowerCase()) {
+      case 'critical': return 'red';
+      case 'high': return 'orange';
+      case 'medium': return 'gold';
+      case 'low': return 'blue';
+      default: return 'default';
+    }
+  };
 
   const statistics = {
     total: totalTemplates,
@@ -371,7 +187,6 @@ const Templates = () => {
 
   return (
     <div className="template-management">
-      {/* 顶部操作栏 */}
       <div className="top-toolbar">
         <div className="toolbar-left">
           <Button
@@ -418,19 +233,9 @@ const Templates = () => {
             <Option value="low">Low</Option>
             <Option value="info">Info</Option>
           </Select>
-          <Select
-            placeholder="状态"
-            size="small"
-          >
-            <Option value="validated">已验证</Option>
-            <Option value="invalid">验证失败</Option>
-          </Select>
         </div>
       </div>
 
-      {/* 导入进度显示 */}
-
-      {/* 模板列表 */}
       <div className="template-list-container">
         <Table
           rowSelection={{
@@ -446,7 +251,8 @@ const Templates = () => {
               title: 'ID',
               dataIndex: 'template_id',
               key: 'template_id',
-              width: 180,
+              width: 200,
+              ellipsis: true,
               render: (id: string) => (
                 <span style={{ color: '#1890ff', cursor: 'pointer', fontSize: '12px' }}>
                   {id}
@@ -458,38 +264,17 @@ const Templates = () => {
               dataIndex: 'name',
               key: 'name',
               ellipsis: true,
-              width: 250,
-            },
-            {
-              title: '标签',
-              dataIndex: 'tags',
-              key: 'tags',
-              width: 200,
-              render: (tags: string) => {
-                if (!tags) return '-';
-                const tagList = tags.split(',').slice(0, 2);
-                return (
-                  <div style={{ display: 'flex', gap: '2px', flexWrap: 'wrap' }}>
-                    {tagList.map((tag, idx) => (
-                      <Tag key={idx} className="template-tag">
-                        {tag.trim()}
-                      </Tag>
-                    ))}
-                    {tags.split(',').length > 2 && (
-                      <span style={{ fontSize: '10px', color: '#999' }}>...</span>
-                    )}
-                  </div>
-                );
-              },
+              width: 300,
             },
             {
               title: '级别',
               dataIndex: 'severity',
               key: 'severity',
-              width: 80,
+              width: 100,
+              align: 'center',
               render: (severity: string) => (
-                <Tag 
-                  color={getSeverityColor(severity)} 
+                <Tag
+                  color={getSeverityColor(severity)}
                   className="severity-tag"
                 >
                   {severity?.toUpperCase() || 'UNKNOWN'}
@@ -500,15 +285,16 @@ const Templates = () => {
               title: '作者',
               dataIndex: 'author',
               key: 'author',
-              width: 120,
+              width: 150,
               ellipsis: true,
             },
             {
               title: '',
               key: 'actions',
-              width: 80,
+              width: 100,
+              align: 'center',
               render: (_, record) => (
-                <div style={{ display: 'flex', gap: '8px' }}>
+                <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
                   <Button
                     type="text"
                     size="small"
@@ -532,37 +318,46 @@ const Templates = () => {
           loading={loading}
           pagination={false}
           size="small"
+          scroll={{ x: 950 }}
         />
       </div>
 
-      {/* 底部操作栏 */}
       <div className="bottom-toolbar">
         <div className="bottom-left">
           <span className="selection-info">
-            已选择 <strong>{selectedRows.length}</strong>/{totalTemplates} 个模板
+            已选择 <strong>{selectedRows.length}</strong>/{filteredTemplates.length} 个模板
+            {searchKeyword || severityFilter ? (
+              <span style={{ marginLeft: 8, color: '#1890ff', fontSize: 12 }}>
+                (已过滤，共 {templates.length} 个模板)
+              </span>
+            ) : null}
           </span>
         </div>
-        
+
         <div className="bottom-center">
           <Pagination
             current={currentPage}
             pageSize={pageSize}
-            total={totalTemplates}
+            total={filteredTemplates.length}
             showSizeChanger
+            showQuickJumper
             showTotal={(total, range) => `第 ${range[0]}-${range[1]} 条，共 ${total} 条`}
             onChange={(page, size) => {
               setCurrentPage(page);
-              setPageSize(size || 50);
+              if (size !== pageSize) {
+                setPageSize(size);
+                setCurrentPage(1); // 改变页大小时重置到第一页
+              }
             }}
             onShowSizeChange={(current, size) => {
-              setCurrentPage(1);
               setPageSize(size);
+              setCurrentPage(1);
             }}
             size="small"
-            pageSizeOptions={['50', '100', '200', '300', '500']}
+            pageSizeOptions={['50', '100', '300', '500', '1000']}
           />
         </div>
-        
+
         <div className="bottom-right">
           <Button
             type="primary"
@@ -576,100 +371,6 @@ const Templates = () => {
         </div>
       </div>
 
-      {/* Validation Modal */}
-      <Modal
-        title="模板验证结果"
-        open={showValidationModal}
-        onCancel={() => setShowValidationModal(false)}
-        width={700}
-        footer={[
-          <Button key="cancel" onClick={() => setShowValidationModal(false)}>
-            取消
-          </Button>,
-          <Button
-            key="confirm"
-            type="primary"
-            onClick={handleConfirmImport}
-            loading={loading}
-            disabled={!validationResult || validationResult.validated === 0}
-          >
-            确认导入 ({validationResult?.validated || 0} 个)
-          </Button>,
-        ]}
-      >
-        {validationResult && (
-          <div>
-            <div style={{ marginBottom: 16 }}>
-              <Row gutter={16}>
-                <Col span={6}>
-                  <Statistic title="发现模板" value={validationResult.totalFound} />
-                </Col>
-                <Col span={6}>
-                  <Statistic
-                    title="验证成功"
-                    value={validationResult.validated}
-                    valueStyle={{ color: '#52c41a' }}
-                    prefix={<CheckCircleOutlined />}
-                  />
-                </Col>
-                <Col span={6}>
-                  <Statistic
-                    title="验证失败"
-                    value={validationResult.failed}
-                    valueStyle={{ color: '#ff4d4f' }}
-                    prefix={<ExclamationCircleOutlined />}
-                  />
-                </Col>
-                <Col span={6}>
-                  <Statistic
-                    title="已存在"
-                    value={validationResult.alreadyExists}
-                    valueStyle={{ color: '#faad14' }}
-                  />
-                </Col>
-              </Row>
-            </div>
-
-            {validationResult.validated > 0 && (
-              <div style={{ marginBottom: 16 }}>
-                <Progress
-                  percent={Math.round((validationResult.validated / validationResult.totalFound) * 100)}
-                  status={validationResult.validated === validationResult.totalFound ? 'success' : 'active'}
-                  format={(percent?: number) => `${percent || 0}% 验证通过`}
-                />
-              </div>
-            )}
-
-            {validationResult.errors.length > 0 && (
-              <div>
-                <h4>验证错误详情：</h4>
-                <div style={{ maxHeight: '200px', overflow: 'auto', backgroundColor: '#f5f5f5', padding: 8, borderRadius: 4 }}>
-                  {validationResult.errors.slice(0, 10).map((err: string, idx: number) => (
-                    <div key={idx} style={{ fontSize: '12px', color: '#ff4d4f', marginBottom: 4 }}>
-                      {err}
-                    </div>
-                  ))}
-                  {validationResult.errors.length > 10 && (
-                    <div style={{ fontSize: '12px', color: '#999', textAlign: 'center' }}>
-                      ... 还有 {validationResult.errors.length - 10} 个错误
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-
-            <Alert
-              message="验证完成"
-              description={`发现 ${validationResult.totalFound} 个模板，其中 ${validationResult.validated} 个验证通过，可以安全导入。`}
-              type={validationResult.validated > 0 ? 'success' : 'warning'}
-              showIcon
-              style={{ marginTop: 16 }}
-            />
-          </div>
-        )}
-      </Modal>
-
-      {/* Task Name Modal */}
       <Modal
         title="输入任务名称"
         open={showTaskNameModal}

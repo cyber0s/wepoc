@@ -18,6 +18,8 @@ export function DeleteScanTask(arg1:number):Promise<void>;
 
 export function DeleteTemplate(arg1:string):Promise<void>;
 
+export function ExportTaskResultAsJSON(arg1:number):Promise<string>;
+
 export function GetAllScanResults():Promise<Array<scanner.TaskResult>>;
 
 export function GetAllScanTasks():Promise<Array<scanner.TaskConfig>>;
@@ -28,6 +30,8 @@ export function GetAppInfo():Promise<Record<string, string>>;
 
 export function GetConfig():Promise<models.Config>;
 
+export function GetPOCTemplateContent(arg1:string):Promise<string>;
+
 export function GetRunningScanTasks():Promise<Array<models.ScanTask>>;
 
 export function GetScanResult(arg1:number):Promise<Record<string, any>>;
@@ -35,6 +39,8 @@ export function GetScanResult(arg1:number):Promise<Record<string, any>>;
 export function GetScanResults(arg1:number):Promise<Array<models.NucleiResult>>;
 
 export function GetScanTaskResult(arg1:number):Promise<scanner.TaskResult>;
+
+export function GetTaskHTTPLogs(arg1:number):Promise<Array<scanner.HTTPRequestLog>>;
 
 export function GetTaskLogSummary(arg1:number):Promise<Record<string, any>>;
 
@@ -56,7 +62,11 @@ export function ReloadConfig():Promise<void>;
 
 export function RescanTask(arg1:number):Promise<void>;
 
+export function SaveCSVFile(arg1:string,arg2:string):Promise<string>;
+
 export function SaveConfig(arg1:models.Config):Promise<void>;
+
+export function SavePOCTemplate(arg1:string,arg2:string):Promise<void>;
 
 export function SearchTemplates(arg1:string,arg2:string):Promise<Array<models.Template>>;
 
@@ -71,6 +81,10 @@ export function StartScanTask(arg1:number):Promise<void>;
 export function StopScanTask(arg1:number):Promise<void>;
 
 export function TestNucleiPath(arg1:string):Promise<main.NucleiTestResult>;
+
+export function TestProxies(arg1:Array<string>):Promise<main.ProxyTestResults>;
+
+export function TestSinglePOC(arg1:main.TestSinglePOCParams):Promise<Record<string, any>>;
 
 export function UpdateScanTask(arg1:number,arg2:string,arg3:string,arg4:string):Promise<scanner.TaskConfig>;
 

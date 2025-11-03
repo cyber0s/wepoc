@@ -78,6 +78,37 @@ type Config struct {
 	NucleiPath     string `json:"nuclei_path"`     // Path to nuclei binary
 	MaxConcurrency int    `json:"max_concurrency"` // Max concurrent tasks
 	Timeout        int    `json:"timeout"`         // Request timeout in seconds
+	
+	// Advanced Nuclei Configuration
+	NucleiConfig NucleiAdvancedConfig `json:"nuclei_config"` // Advanced Nuclei settings
+}
+
+// NucleiAdvancedConfig contains advanced Nuclei scanning parameters
+type NucleiAdvancedConfig struct {
+	// Threading Configuration
+	Concurrency         int `json:"concurrency"`          // Template concurrency (-c)
+	BulkSize           int `json:"bulk_size"`            // Bulk size for processing
+	RateLimit          int `json:"rate_limit"`           // Rate limit per second
+	RateLimitMinute    int `json:"rate_limit_minute"`    // Rate limit per minute
+	
+	// Proxy Configuration
+	ProxyEnabled       bool     `json:"proxy_enabled"`        // Enable proxy usage
+	ProxyURL           string   `json:"proxy_url"`            // Single proxy URL
+	ProxyList          []string `json:"proxy_list"`           // List of proxy URLs
+	ProxyInternal      bool     `json:"proxy_internal"`       // Proxy internal requests
+	
+	// DNS/OAST Configuration
+	InteractshEnabled  bool   `json:"interactsh_enabled"`   // Enable Interactsh
+	InteractshServer   string `json:"interactsh_server"`    // Custom Interactsh server
+	InteractshToken    string `json:"interactsh_token"`     // Interactsh auth token
+	InteractshDisable  bool   `json:"interactsh_disable"`   // Disable Interactsh completely
+	
+	// Additional Options
+	Retries            int  `json:"retries"`              // Number of retries
+	MaxHostError       int  `json:"max_host_error"`       // Max host errors
+	DisableUpdateCheck bool `json:"disable_update_check"` // Disable update check
+	FollowRedirects    bool `json:"follow_redirects"`     // Follow HTTP redirects
+	MaxRedirects       int  `json:"max_redirects"`        // Max redirects to follow
 }
 
 // ScanLog represents a log entry during scanning

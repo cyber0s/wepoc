@@ -1,3 +1,16 @@
 build/bin
 node_modules
 frontend/dist
+dist/
+.DS_Store
+*.log
+*.exe
+wepoc
+wepoc-*
+*.app
+FIXES_SUMMARY.md
+IMPLEMENTATION_SUMMARY.md
+POC_PROGRESS_FIX.md
+UI_FIXES.md
+WHY_69_POCS.md
+other.md

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Typography, Tag } from 'antd';
 import { BugOutlined } from '@ant-design/icons';
-import * as api from '../services/api';
+import { api } from '../services/api';
 import { ScanEvent } from '../types';
 
 const { Text } = Typography;

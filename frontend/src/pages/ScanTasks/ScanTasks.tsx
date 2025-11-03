@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { useLocation } from 'react-router-dom';
 import {
   Card,
   Typography,
@@ -15,6 +16,7 @@ import {
   Badge,
   Table,
   Select,
+  Tabs,
 } from 'antd';
 import {
   PlusOutlined,
@@ -24,18 +26,32 @@ import {
   ReloadOutlined,
   BugOutlined,
   FileAddOutlined,
+  DownloadOutlined,
 } from '@ant-design/icons';
-import { TaskConfig, ScanEvent, ScanProgress, ScanLogEntry, Template } from '../../types';
-import * as api from '../../services/api';
+import { TaskConfig, ScanEvent, ScanProgress, ScanLogEntry, Template, HTTPRequestLog } from '../../types';
+import { api } from '../../services/api';
 import ScanProgressComponent from '../../components/ScanProgressComponent';
 import ScanLogs from '../../components/ScanLogs';
+import HTTPRequestTable from '../../components/HTTPRequestTable';
 import './ScanTasks.css';
+
+const { TabPane } = Tabs;
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
 const { Option } = Select;
 
+// 新增：HTTP请求/响应事件类型
+type HttpEvent = {
+  template_id: string;
+  target: string;
+  request: string;
+  response: string;
+  timestamp: string;
+};
+
 const ScanTasks = () => {
+  const location = useLocation();
   const [tasks, setTasks] = useState<TaskConfig[]>([]);
   const [selectedTask, setSelectedTask] = useState<TaskConfig | null>(null);
   const [selectedTemplates, setSelectedTemplates] = useState<string[]>([]);
@@ -56,92 +72,376 @@ const ScanTasks = () => {
   const [selectedTemplateKeys, setSelectedTemplateKeys] = useState<React.Key[]>([]);
 
   // Real-time progress and logs for selected task
-  const [taskProgress, setTaskProgress] = useState<Record<number, ScanProgress>>({});
+  const [taskProgress, setTaskProgress] = useState<Record<number, ScanProgress>>(() => {
+    // 从localStorage恢复进度数据
+    try {
+      const saved = localStorage.getItem('wepoc_task_progress');
+      return saved ? JSON.parse(saved) : {};
+    } catch {
+      return {};
+    }
+  });
   const [taskLogs, setTaskLogs] = useState<Record<number, ScanLogEntry[]>>({});
+
+  // 新增：完整HTTP请求日志（从后端加载）
+  const [taskHTTPLogs, setTaskHTTPLogs] = useState<Record<number, HTTPRequestLog[]>>({});
+  const [loadingHTTPLogs, setLoadingHTTPLogs] = useState(false);
+
+  // 新增：跟踪已完成的任务，避免重复提示 - 使用 useRef 避免闭包问题
+  const completedTasksRef = useRef<Set<number>>(new Set());
+  // 防抖保存进度数据到localStorage
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      try {
+        // 保存所有任务的进度数据，包括已完成的任务（需要显示统计信息）
+        // 已完成任务的统计数据（被过滤、被跳过、HTTP请求数）对用户很重要
+        localStorage.setItem('wepoc_task_progress', JSON.stringify(taskProgress));
+      } catch (error) {
+        console.warn('Failed to save task progress to localStorage:', error);
+      }
+    }, 1000); // 防抖1秒
+
+    return () => clearTimeout(timer);
+  }, [taskProgress]);
 
   // Load tasks on mount
   useEffect(() => {
-    loadTasks();
-    loadSelectedTemplates();
+    const initializePage = async () => {
+      try {
+        await loadTasks();
+        loadSelectedTemplates();
 
-    // Check if there's a task name from template page (indicates user wants to create task)
-    const savedTaskName = sessionStorage.getItem('taskName');
-    const autoCreateTask = sessionStorage.getItem('autoCreateTask');
-    
-    if (savedTaskName && autoCreateTask === 'true') {
-      setTaskName(savedTaskName);
-      // Auto-create task directly if coming from template page with auto-create flag
-      setTimeout(() => {
-        handleAutoCreateTask(savedTaskName);
-      }, 500); // Small delay to ensure templates are loaded
-      
-      // Clear the flags from session storage
-      sessionStorage.removeItem('taskName');
-      sessionStorage.removeItem('autoCreateTask');
-    } else if (savedTaskName) {
-      setTaskName(savedTaskName);
-      // Auto-open create modal if coming from template page
-      setCreateModalVisible(true);
-      // Clear the taskName from session storage
-      sessionStorage.removeItem('taskName');
+        // 请求浏览器通知权限（仅在首次访问时）
+        if ('Notification' in window && Notification.permission === 'default') {
+          try {
+            await Notification.requestPermission();
+          } catch (err) {
+            console.warn('Failed to request notification permission:', err);
+          }
+        }
+
+        // Check if there's data from template page navigation
+        if (location.state) {
+          const { selectedTemplates: templatesFromNav, taskName: taskNameFromNav } = location.state as any;
+          
+          if (templatesFromNav && templatesFromNav.length > 0) {
+            // Set the selected templates from navigation
+            const templatePaths = templatesFromNav.map((template: Template) => template.file_path);
+            setSelectedTemplates(templatePaths);
+            
+            // Set task name if provided
+            if (taskNameFromNav) {
+              setTaskName(taskNameFromNav);
+            }
+            
+            // Auto-open create modal
+            setCreateModalVisible(true);
+            
+            message.success(`已选择 ${templatesFromNav.length} 个模板，请添加扫描目标`);
+          }
+        } else {
+          // Check if there's a task name from template page (indicates user wants to create task)
+          const savedTaskName = sessionStorage.getItem('taskName');
+          const autoCreateTask = sessionStorage.getItem('autoCreateTask');
+          
+          if (savedTaskName && autoCreateTask === 'true') {
+            setTaskName(savedTaskName);
+            // Auto-create task directly if coming from template page with auto-create flag
+            setTimeout(() => {
+              handleAutoCreateTask(savedTaskName);
+            }, 500); // Small delay to ensure templates are loaded
+            
+            // Clear the flags from session storage
+            sessionStorage.removeItem('taskName');
+            sessionStorage.removeItem('autoCreateTask');
+          } else if (savedTaskName) {
+            setTaskName(savedTaskName);
+            // Auto-open create modal if coming from template page
+            setCreateModalVisible(true);
+            // Clear the taskName from session storage
+            sessionStorage.removeItem('taskName');
+          }
+        }
+      } catch (error) {
+        console.error('Failed to initialize page:', error);
+        message.error('页面初始化失败，请刷新重试');
+      }
+    };
+
+    initializePage();
+  }, [location.state]);
+
+  // 去抖动控制 - 缓存最新事件，延迟更新但不丢失数据
+  const pendingEventsRef = useRef<Record<number, ScanEvent>>({});
+  const debounceTimersRef = useRef<Record<number, number>>({});
+  const UPDATE_DEBOUNCE_MS = 150; // 150ms去抖动间隔（比之前的200ms更快）
+
+  // 进度事件处理函数 - 提取为独立函数以便复用
+  const processProgressEvent = useCallback((event: ScanEvent) => {
+    console.log('Processing scan event:', event.event_type, event.data.status);
+
+    // 特别打印完成状态的事件
+    if (event.data.status === 'completed') {
+      console.log(`✅ Received COMPLETED event for task ${event.task_id}:`, event.data);
+      console.log(`   - Status: ${event.data.status}`);
+      console.log(`   - Scanned: ${event.data.scanned_templates}/${event.data.total_templates}`);
+      console.log(`   - Found Vulns: ${event.data.found_vulns}`);
     }
-  }, []);
+
+    // 检测是否是初始化事件（任务刚启动，所有进度为0）
+    const isInitializing = event.data.status === 'running' &&
+                           event.data.scanned_templates === 0 &&
+                           event.data.completed_requests === 0;
+
+    if (isInitializing) {
+      console.log(`🔄 收到任务 ${event.task_id} 的初始化事件，清零旧数据`);
+    }
+
+    // 获取当前任务的进度数据
+    const currentProgress = taskProgress[event.task_id];
+
+    // 如果是初始化事件，强制使用新数据（不进行Math.max）
+    // 否则确保数据单调递增
+    const newScannedTemplates = isInitializing ? 0 : Math.max(
+      event.data.scanned_templates || 0,
+      currentProgress?.scanned_templates || 0
+    );
+    const newCompletedTemplates = isInitializing ? 0 : Math.max(
+      event.data.completed_templates || 0,
+      currentProgress?.completed_templates || 0
+    );
+    const newFoundVulns = isInitializing ? 0 : Math.max(
+      event.data.found_vulns || 0,
+      currentProgress?.found_vulns || 0
+    );
+    const newCompletedRequests = isInitializing ? 0 : Math.max(
+      event.data.completed_requests || 0,
+      currentProgress?.completed_requests || 0
+    );
+
+    // Update progress for the task
+    setTaskProgress(prev => ({
+      ...prev,
+      [event.task_id]: {
+        task_id: event.task_id,
+        total_requests: event.data.total_requests || prev[event.task_id]?.total_requests || 0,
+        completed_requests: newCompletedRequests,
+        found_vulns: newFoundVulns,
+        percentage: event.data.percentage || 0,
+        status: event.data.status || 'pending',
+        current_template: event.data.current_template || '',
+        current_target: event.data.current_target || '',
+        total_templates: event.data.total_templates || prev[event.task_id]?.total_templates || 0,
+        completed_templates: newCompletedTemplates,
+        scanned_templates: newScannedTemplates,
+        failed_templates: Math.max(
+          event.data.failed_templates || 0,
+          prev[event.task_id]?.failed_templates || 0
+        ),
+        filtered_templates: Math.max(
+          event.data.filtered_templates || 0,
+          prev[event.task_id]?.filtered_templates || 0
+        ),
+        skipped_templates: Math.max(
+          event.data.skipped_templates || 0,
+          prev[event.task_id]?.skipped_templates || 0
+        ),
+        current_index: event.data.current_index || newScannedTemplates,
+        selected_templates: event.data.selected_templates || prev[event.task_id]?.selected_templates || [],
+        scanned_template_ids: event.data.scanned_template_ids || prev[event.task_id]?.scanned_template_ids || [],
+        failed_template_ids: event.data.failed_template_ids || prev[event.task_id]?.failed_template_ids || [],
+        filtered_template_ids: event.data.filtered_template_ids || prev[event.task_id]?.filtered_template_ids || [],
+        skipped_template_ids: event.data.skipped_template_ids || prev[event.task_id]?.skipped_template_ids || [],
+      },
+    }));
+
+    // Also update task status in the list
+    setTasks(prevTasks =>
+      prevTasks.map(task =>
+        task.id === event.task_id
+          ? {
+              ...task,
+              status: event.data.status,
+              found_vulns: Math.max(newFoundVulns, task.found_vulns || 0),
+              completed_requests: Math.max(newCompletedRequests, task.completed_requests || 0),
+              total_requests: event.data.total_requests || task.total_requests,
+            }
+          : task
+      )
+    );
+
+    // Also update selected task if it's the current one
+    setSelectedTask(prev => {
+      if (prev && prev.id === event.task_id) {
+        return {
+          ...prev,
+          status: event.data.status,
+          found_vulns: Math.max(newFoundVulns, prev.found_vulns || 0),
+          completed_requests: Math.max(newCompletedRequests, prev.completed_requests || 0),
+          total_requests: event.data.total_requests || prev.total_requests,
+        };
+      }
+      return prev;
+    });
+
+    // 检查扫描是否完成，显示全局提示并刷新任务列表
+    if (event.data.status === 'completed' && !completedTasksRef.current.has(event.task_id)) {
+      // 立即标记为已完成，防止重复触发
+      completedTasksRef.current.add(event.task_id);
+
+      console.log(`🔄 任务 ${event.task_id} 完成，准备刷新任务列表...`);
+
+      // 获取任务信息 - 使用 setTasks 的回调来获取最新的 tasks 值
+      let taskName = `任务 ${event.task_id}`;
+      setTasks(currentTasks => {
+        const task = currentTasks.find(t => t.id === event.task_id);
+        if (task) {
+          taskName = task.name;
+        }
+        return currentTasks; // 不修改 tasks，只是读取
+      });
+
+      // 延迟刷新任务列表，确保后端已保存最终状态
+      setTimeout(() => {
+        console.log(`🔄 强制刷新任务列表以同步完成状态...`);
+        loadTasks();
+      }, 500);
+
+      const vulnCount = newFoundVulns;
+      const scannedCount = newScannedTemplates;
+      const totalCount = event.data.total_templates || 0;
+      const filteredCount = event.data.filtered_templates || 0;
+      const skippedCount = event.data.skipped_templates || 0;
+
+      // 保留已完成任务的最终统计数据，不要删除
+      // 用户需要查看完整的统计信息（被过滤、被跳过、HTTP请求数等）
+
+      // 显示扫描完成提示 - 只显示一次，简洁版
+      setTimeout(() => {
+        const notificationConfig = {
+          content: (
+            <div>
+              <div style={{
+                fontWeight: 'bold',
+                marginBottom: 6,
+                fontSize: 15,
+                color: vulnCount > 0 ? '#ff4d4f' : '#52c41a'
+              }}>
+                {vulnCount > 0 ? '⚠️ 扫描完成 - 发现漏洞！' : '✅ 扫描完成！'}
+              </div>
+              <div style={{ fontSize: 13, color: '#333', marginBottom: 4, fontWeight: 500 }}>
+                {taskName}
+              </div>
+              <div style={{
+                fontSize: 13,
+                color: '#666',
+                padding: '6px 0',
+                borderTop: '1px solid #f0f0f0',
+                marginTop: 4
+              }}>
+                扫描 <Text strong style={{ color: '#1890ff' }}>{scannedCount}/{totalCount}</Text> 个POC
+                {vulnCount > 0 && (
+                  <span>，发现 <Text strong style={{ color: '#ff4d4f' }}>{vulnCount}</Text> 个漏洞</span>
+                )}
+              </div>
+            </div>
+          ),
+          duration: vulnCount > 0 ? 10 : 6,
+          style: {
+            marginTop: 60,
+          }
+        };
+
+        // 统一使用 success，通过内容颜色区分
+        message.success(notificationConfig);
+
+        // 尝试发送浏览器通知（如果用户授权）
+        if ('Notification' in window && Notification.permission === 'granted') {
+          try {
+            new Notification('WePOC - 扫描完成', {
+              body: `${taskName}\n扫描 ${scannedCount}/${totalCount} 个POC${vulnCount > 0 ? `，发现 ${vulnCount} 个漏洞` : ''}`,
+              icon: '/favicon.ico',
+              tag: `scan-complete-${event.task_id}`,
+              requireInteraction: vulnCount > 0 // 发现漏洞时需要用户交互
+            });
+          } catch (err) {
+            console.warn('Failed to show browser notification:', err);
+          }
+        }
+      }, 500); // 延迟500ms显示，确保数据更新完成
+    }
+  }, [taskProgress]);
 
   // Listen to scan events
   useEffect(() => {
     const unsubscribe = api.onScanEvent((event: ScanEvent) => {
-      console.log('Received scan event:', event); // 添加日志以便调试
-      
-      if (event.event_type === 'progress') {
-        console.log('Progress event received:', event.data); // 添加调试日志
-        // Update progress for the task
-        setTaskProgress(prev => ({
-          ...prev,
-          [event.task_id]: event.data,
-        }));
+      // 对于进度事件，使用去抖动策略：缓存最新事件，延迟处理
+      if (event.event_type === 'progress' && event.data.status !== 'completed') {
+        // 缓存最新事件
+        pendingEventsRef.current[event.task_id] = event;
 
-        // Also update task status in the list
-        setTasks(prevTasks =>
-          prevTasks.map(task =>
-            task.id === event.task_id
-              ? {
-                  ...task,
-                  status: event.data.status,
-                  completed_requests: event.data.completed_requests,
-                  found_vulns: event.data.found_vulns,
-                }
-              : task
-          )
-        );
-        
-        // Tasks state will automatically trigger re-render
-      } else if (event.event_type === 'vuln_found') {
-        // Vulnerability notification is now handled globally by GlobalVulnNotification component
-        // No need to handle it here
-      } else if (event.event_type === 'completed') {
-        // 避免重复显示完成消息
-        // message.success(`任务扫描完成！`);
-        loadTasks(); // Reload tasks to get final state
-      } else if (event.event_type === 'error') {
-        message.error(`任务失败: ${event.data}`);
-        loadTasks();
+        // 清除之前的定时器
+        if (debounceTimersRef.current[event.task_id]) {
+          clearTimeout(debounceTimersRef.current[event.task_id]);
+        }
+
+        // 设置新的延迟处理定时器
+        debounceTimersRef.current[event.task_id] = setTimeout(() => {
+          const latestEvent = pendingEventsRef.current[event.task_id];
+          if (latestEvent) {
+            // 处理缓存的最新事件
+            processProgressEvent(latestEvent);
+            delete pendingEventsRef.current[event.task_id];
+          }
+        }, UPDATE_DEBOUNCE_MS);
+
+        return; // 暂不处理，等待去抖动定时器触发
       }
-      // Note: We no longer handle 'log' events to avoid UI lag
+
+      // 非进度事件或完成状态，立即处理
+      if (event.event_type === 'progress') {
+        processProgressEvent(event);
+      }
+
+      // Tasks state will automatically trigger re-render
     });
 
+    // 清理函数：组件卸载时清除所有定时器
     return () => {
-      // Cleanup if needed
+      unsubscribe();
+
+      // 清除所有待处理的去抖动定时器
+      Object.values(debounceTimersRef.current).forEach(timer => {
+        if (timer) clearTimeout(timer);
+      });
+      debounceTimersRef.current = {};
+
+      // 处理所有待处理的事件（防止数据丢失）
+      Object.entries(pendingEventsRef.current).forEach(([taskId, event]) => {
+        processProgressEvent(event);
+      });
+      pendingEventsRef.current = {};
     };
-  }, []);
+  }, [processProgressEvent]);
 
   const loadTasks = async () => {
     try {
       const allTasks = await api.getAllScanTasks();
-      const sortedTasks = sortTasksByTime(allTasks || [], sortOrder);
-      setTasks(sortedTasks);
+      if (allTasks && Array.isArray(allTasks)) {
+        const sortedTasks = sortTasksByTime(allTasks, sortOrder);
+        setTasks(sortedTasks);
+      } else {
+        console.warn('Tasks data is not an array:', allTasks);
+        setTasks([]);
+        // 只有在确实有数据但格式错误时才显示警告，空数据不显示警告
+        if (allTasks !== null && allTasks !== undefined) {
+          message.warning('任务数据格式异常');
+        }
+      }
     } catch (error) {
       console.error('Failed to load tasks:', error);
-      message.error('加载任务失败');
+      message.error(`加载任务失败: ${error instanceof Error ? error.message : '未知错误'}`);
+      setTasks([]);
     }
   };
 
@@ -193,7 +493,11 @@ const ScanTasks = () => {
         taskName: autoTaskName
       });
       
-      const task = await api.createScanTask(selectedTemplates, [], autoTaskName);
+      // Convert arrays to JSON strings for backend
+      const pocsJSON = JSON.stringify(selectedTemplates);
+      const targetsJSON = JSON.stringify([]);
+      
+      const task = await api.createScanTask(pocsJSON, targetsJSON, autoTaskName);
       
       if (task && task.id) {
         message.success(`任务 "${autoTaskName}" 创建成功，请添加目标地址后开始扫描`);
@@ -248,14 +552,18 @@ const ScanTasks = () => {
         taskName: taskName
       });
       
+      // Convert arrays to JSON strings for backend
+      const pocsJSON = JSON.stringify(selectedTemplates);
+      const targetsJSON = JSON.stringify(targetList);
+      
       let task;
       if (editingTask) {
         // Update existing task
-        task = await api.updateScanTask(editingTask.id, selectedTemplates, targetList, taskName);
+        task = await api.updateScanTask(editingTask.id, pocsJSON, targetsJSON, taskName);
         message.success('任务更新成功');
       } else {
         // Create new task
-        task = await api.createScanTask(selectedTemplates, targetList, taskName);
+        task = await api.createScanTask(pocsJSON, targetsJSON, taskName);
         message.success('任务创建成功');
       }
       
@@ -272,8 +580,11 @@ const ScanTasks = () => {
         
         // Reload tasks to reflect changes
         await loadTasks();
+        
+        // Select the newly created/updated task
+        setSelectedTask(task);
       } else {
-        throw new Error(editingTask ? '任务更新失败：返回数据异常' : '任务创建失败：返回数据异常');
+        throw new Error('任务操作失败：返回数据异常');
       }
     } catch (error: any) {
       console.error('Failed to create/update task:', error);
@@ -335,6 +646,11 @@ const ScanTasks = () => {
   const handleSelectTask = async (task: TaskConfig) => {
     setSelectedTask(task);
     // Don't load logs automatically - user can click "View Logs" button if needed
+
+    // Auto-load HTTP logs for completed/failed tasks to show count in tab
+    if ((task.status === 'completed' || task.status === 'failed') && !taskHTTPLogs[task.id]) {
+      handleLoadHTTPLogs(task.id);
+    }
   };
 
   const handleViewLogs = async () => {
@@ -350,6 +666,39 @@ const ScanTasks = () => {
     } catch (error) {
       console.error('Failed to load task logs:', error);
       message.error('加载日志失败');
+    }
+  };
+
+  // 新增：加载HTTP请求日志
+  const handleLoadHTTPLogs = async (taskId: number) => {
+    try {
+      setLoadingHTTPLogs(true);
+      const logs = await api.getTaskHTTPLogs(taskId);
+      setTaskHTTPLogs(prev => ({
+        ...prev,
+        [taskId]: logs || [],
+      }));
+      console.log(`✅ 加载了 ${logs?.length || 0} 条HTTP请求日志`);
+    } catch (error) {
+      console.error('Failed to load HTTP logs:', error);
+      message.error('加载HTTP请求日志失败');
+    } finally {
+      setLoadingHTTPLogs(false);
+    }
+  };
+
+  // 新增：导出扫描结果
+  const handleExportResult = async () => {
+    if (!selectedTask) return;
+
+    try {
+      const filePath = await api.exportTaskResultAsJSON(selectedTask.id);
+      if (filePath) {
+        message.success(`导出成功: ${filePath}`);
+      }
+    } catch (error) {
+      console.error('Failed to export result:', error);
+      message.error('导出失败');
     }
   };
 
@@ -507,7 +856,7 @@ const ScanTasks = () => {
   return (
     <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
       <div style={{
-        padding: '12px 16px',
+        padding: '16px 20px',
         backgroundColor: '#fff',
         borderBottom: '1px solid #e8e8e8',
         boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
@@ -531,7 +880,7 @@ const ScanTasks = () => {
         </Space>
       </div>
 
-      <Row gutter={16} style={{ padding: '0 16px', flex: 1, minHeight: 0 }}>
+      <Row gutter={16} style={{ padding: '16px 16px 0', flex: 1, minHeight: 0 }}>
         {/* Left: Task List */}
         <Col span={8} style={{ height: '100%' }}>
           <Card 
@@ -650,24 +999,6 @@ const ScanTasks = () => {
                         })}
                       </Text>
                     </div>
-                    {/* 实时进度显示 - 始终显示，不仅仅是taskProgress存在时 */}
-                    <div style={{ marginTop: 4 }}>
-                      <Text type="secondary" style={{ fontSize: 10, lineHeight: '14px' }}>
-                        进度: {taskProgress[task.id] ? (
-                          <>
-                            {taskProgress[task.id].completed_requests}/
-                            {taskProgress[task.id].total_requests} (
-                            {Math.round(taskProgress[task.id].percentage)}%)
-                          </>
-                        ) : (
-                          <>
-                            {task.completed_requests}/
-                            {task.total_requests} (
-                            {task.total_requests > 0 ? Math.round((task.completed_requests / task.total_requests) * 100) : 0}%)
-                          </>
-                        )}
-                      </Text>
-                    </div>
                   </div>
                 </List.Item>
               )}
@@ -734,31 +1065,49 @@ const ScanTasks = () => {
                   display: 'flex', 
                   flexDirection: 'column' 
                 }}
-                bodyStyle={{ 
-                  flex: 1, 
-                  overflow: 'hidden', 
-                  display: 'flex', 
+                bodyStyle={{
+                  flex: 1,
+                  overflow: 'auto',  // 改为auto以支持滚动
+                  display: 'flex',
                   flexDirection: 'column',
                   padding: '16px'
                 }}
               >
-                {/* Progress - Show first if running */}
-                {(taskProgress[selectedTask.id] || selectedTask.status === 'running') && (
-                  <div style={{ marginBottom: 16, flexShrink: 0 }}>
-                    <ScanProgressComponent progress={taskProgress[selectedTask.id] || {
-                      task_id: selectedTask.id,
-                      total_requests: selectedTask.total_requests,
-                      completed_requests: selectedTask.completed_requests,
-                      found_vulns: selectedTask.found_vulns,
-                      percentage: selectedTask.total_requests > 0 ? (selectedTask.completed_requests / selectedTask.total_requests) * 100 : 0,
-                      status: selectedTask.status
-                    }} />
+                {/* 扫描状态文字提示 - 只在运行中时显示 */}
+                {selectedTask.status === 'running' && (
+                  <div style={{
+                    marginBottom: 16,
+                    flexShrink: 0,
+                    padding: '12px 16px',
+                    background: '#e6f7ff',
+                    border: '1px solid #91d5ff',
+                    borderRadius: '4px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '12px'
+                  }}>
+                    <span style={{ fontSize: '14px', color: '#1890ff', fontWeight: 500 }}>
+                      🔄 正在扫描中...
+                    </span>
+                    {taskProgress[selectedTask.id] && taskProgress[selectedTask.id].found_vulns > 0 && (
+                      <span style={{ fontSize: '13px', color: '#ff4d4f', fontWeight: 600 }}>
+                        发现 {taskProgress[selectedTask.id].found_vulns} 个漏洞
+                      </span>
+                    )}
                   </div>
                 )}
 
-                {/* Task Info - Compact layout */}
-                <div style={{ flex: 1, overflow: 'auto', display: 'flex', flexDirection: 'column' }}>
-                  <Row gutter={[12, 12]} style={{ marginBottom: 12, flexShrink: 0 }}>
+                {/* Task Info - 移除了 HTTP 请求 tab */}
+                <div style={{
+                  flex: 1,
+                  overflow: 'auto'
+                }}>
+                  <div style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '12px'
+                  }}>
+                      <Row gutter={[12, 12]} style={{ marginBottom: 12, flexShrink: 0 }}>
                     <Col span={12}>
                       <div style={{
                         padding: '8px 12px',
@@ -831,35 +1180,95 @@ const ScanTasks = () => {
                     </Col>
                   </Row>
 
-                  {/* POC Templates - Collapsed by default */}
-                   <div style={{
-                     padding: '8px 12px',
-                     background: '#fafafa',
-                     borderRadius: 4,
-                     border: '1px solid #f0f0f0',
-                     marginBottom: 12,
-                     flexShrink: 0
-                   }}>
-                     <Text type="secondary" style={{ fontSize: 12 }}>发现漏洞: </Text>
-                     <Text strong style={{ fontSize: 16, color: '#ff4d4f' }}>
-                       {selectedTask.found_vulns || 0}
-                     </Text>
-                     <Text type="secondary" style={{ marginLeft: 4, fontSize: 12 }}>个</Text>
-                   </div>
+                  {/* 扫描结果摘要 - 紧凑版 */}
+                   {selectedTask.status !== 'pending' && (selectedTask.status === 'completed' || taskProgress[selectedTask.id]) && (
+                     <div style={{
+                       padding: '14px',
+                       background: '#fafafa',
+                       borderRadius: 8,
+                       marginBottom: 12,
+                       flexShrink: 0,
+                       border: '1px solid #e8e8e8'
+                     }}>
+                       <Row gutter={12} style={{ marginBottom: 12 }}>
+                         <Col span={6}>
+                           <div style={{ textAlign: 'center', padding: '8px', background: '#fff', borderRadius: 4 }}>
+                             <Text type="secondary" style={{ fontSize: 11, display: 'block', marginBottom: 4 }}>已扫描</Text>
+                             <Text strong style={{ fontSize: 18, color: '#1890ff' }}>
+                               {taskProgress[selectedTask.id]?.scanned_templates || (selectedTask.status === 'completed' ? selectedTask.pocs.length : 0)}
+                             </Text>
+                           </div>
+                         </Col>
+                         <Col span={6}>
+                           <div style={{ textAlign: 'center', padding: '8px', background: '#fff', borderRadius: 4 }}>
+                             <Text type="secondary" style={{ fontSize: 11, display: 'block', marginBottom: 4 }}>发现漏洞</Text>
+                             <Text strong style={{ fontSize: 18, color: selectedTask.found_vulns > 0 ? '#ff4d4f' : '#52c41a' }}>
+                               {selectedTask.found_vulns || 0}
+                             </Text>
+                           </div>
+                         </Col>
+                         <Col span={6}>
+                           <div style={{ textAlign: 'center', padding: '8px', background: '#fff7e6', borderRadius: 4 }}>
+                             <Text type="secondary" style={{ fontSize: 11, display: 'block', marginBottom: 4 }}>被过滤</Text>
+                             <Text strong style={{ fontSize: 18, color: '#faad14' }}>
+                               {taskProgress[selectedTask.id]?.filtered_templates || 0}
+                             </Text>
+                           </div>
+                         </Col>
+                         <Col span={6}>
+                           <div style={{ textAlign: 'center', padding: '8px', background: '#f5f5f5', borderRadius: 4 }}>
+                             <Text type="secondary" style={{ fontSize: 11, display: 'block', marginBottom: 4 }}>被跳过</Text>
+                             <Text strong style={{ fontSize: 18, color: '#8c8c8c' }}>
+                               {taskProgress[selectedTask.id]?.skipped_templates || 0}
+                             </Text>
+                           </div>
+                         </Col>
+                       </Row>
 
-                  {/* Logs */}
-                  {taskLogs[selectedTask.id] && taskLogs[selectedTask.id].length > 0 && (
-                    <div style={{ flex: 1, minHeight: 0 }}>
-                      <ScanLogs logs={taskLogs[selectedTask.id]} />
-                    </div>
-                  )}
+                       {/* HTTP请求统计 */}
+                       <div style={{
+                         padding: '8px 12px',
+                         background: '#fff',
+                         borderRadius: 4,
+                         display: 'flex',
+                         justifyContent: 'space-between',
+                         alignItems: 'center'
+                       }}>
+                         <Text type="secondary" style={{ fontSize: 12 }}>HTTP请求数：</Text>
+                         <Text strong style={{ fontSize: 14, color: '#1890ff' }}>
+                           {selectedTask.completed_requests || 0}
+                         </Text>
+                       </div>
+
+                       {/* POC总数验证 */}
+                       {selectedTask.status === 'completed' && taskProgress[selectedTask.id] && (
+                         <div style={{
+                           marginTop: 8,
+                           padding: '6px 12px',
+                           background: '#e6f7ff',
+                           borderRadius: 4,
+                           fontSize: 11,
+                           color: '#666',
+                           textAlign: 'center'
+                         }}>
+                           ✓ 验证：{taskProgress[selectedTask.id].scanned_templates} + {taskProgress[selectedTask.id].filtered_templates} + {taskProgress[selectedTask.id].skipped_templates} = {selectedTask.pocs.length} 个POC
+                         </div>
+                       )}
+                     </div>
+                   )}
+
+                   {/* 日志查看器 */}
+                   <div style={{ flexShrink: 0 }}>
+                     <ScanLogs logs={taskLogs[selectedTask.id] || []} />
+                   </div>
+                  </div>
                 </div>
               </Card>
             </div>
           ) : (
             <Card style={{ height: '100%' }}>
-              <div style={{ textAlign: 'center', padding: 40 }}>
-                <Text type="secondary">请从左侧选择一个任务查看详情</Text>
+              <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Text type="secondary">请选择左侧任务查看详情</Text>
               </div>
             </Card>
           )}
@@ -950,12 +1359,28 @@ const ScanTasks = () => {
         confirmLoading={loading}
       >
         <Space direction="vertical" style={{ width: '100%' }} size="middle">
-          <Input.Search
-            placeholder="搜索模板 (名称、ID 或标签)"
-            value={templateSearchKeyword}
-            onChange={(e) => handleTemplateSearch(e.target.value)}
-            allowClear
-          />
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Input.Search
+              placeholder="搜索模板 (名称、ID 或标签)"
+              value={templateSearchKeyword}
+              onChange={(e) => handleTemplateSearch(e.target.value)}
+              allowClear
+              style={{ flex: 1, marginRight: 16 }}
+            />
+            <Button
+              type="primary"
+              size="small"
+              onClick={() => {
+                const allFilteredKeys = filteredTemplates.map(template => template.id);
+                setSelectedTemplateKeys(allFilteredKeys);
+                setSelectedTemplateRows(filteredTemplates);
+                message.success(`已选择所有过滤后的 ${filteredTemplates.length} 个模板`);
+              }}
+              disabled={filteredTemplates.length === 0}
+            >
+              全选过滤结果 ({filteredTemplates.length})
+            </Button>
+          </div>
           <Table
             dataSource={filteredTemplates}
             rowKey="id"
@@ -970,9 +1395,10 @@ const ScanTasks = () => {
               },
             }}
             pagination={{
-              pageSize: 10,
-              showSizeChanger: false,
-              showTotal: (total) => `共 ${total} 个模板`,
+              pageSize: 50,
+              showSizeChanger: true,
+              showTotal: (total, range) => `第 ${range[0]}-${range[1]} 条，共 ${total} 个模板`,
+              pageSizeOptions: ['20', '50', '100', '200', '500'],
             }}
             columns={[
               {

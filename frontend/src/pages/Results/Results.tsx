@@ -23,9 +23,13 @@ import {
   BugOutlined,
   ClockCircleOutlined,
   CheckCircleOutlined,
+  DownloadOutlined,
+  EditOutlined,
 } from '@ant-design/icons';
 import { TaskResult, NucleiResult } from '../../types';
-import * as api from '../../services/api';
+import { api } from '../../services/api';
+import POCEditor from '../../components/POCEditor';
+import { SaveCSVFile } from '../../../wailsjs/go/main/App';
 import './Results.css';
 
 const { Title, Text, Paragraph } = Typography;
@@ -38,6 +42,14 @@ const Results = () => {
   const [selectedResult, setSelectedResult] = useState<TaskResult | null>(null);
   const [drawerVisible, setDrawerVisible] = useState(false);
   const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc');
+
+  // POC Editor state
+  const [pocEditorVisible, setPocEditorVisible] = useState(false);
+  const [selectedPOC, setSelectedPOC] = useState<{
+    templateId: string;
+    templatePath: string;
+    target: string;
+  } | null>(null);
 
   useEffect(() => {
     loadResults();
@@ -76,6 +88,125 @@ const Results = () => {
   const handleViewDetails = (result: TaskResult) => {
     setSelectedResult(result);
     setDrawerVisible(true);
+  };
+
+  // 导出单个任务结果为 CSV
+  const handleExportCSV = async (result: TaskResult) => {
+    try {
+      if (!result.vulnerabilities || result.vulnerabilities.length === 0) {
+        message.warning('该任务没有发现漏洞，无需导出');
+        return;
+      }
+
+      // CSV 表头
+      const headers = ['模板ID', '模板名称', '严重程度', '目标URL', '提取数据', '扫描时间'];
+
+      // CSV 数据行
+      const rows = result.vulnerabilities.map((vuln: NucleiResult) => {
+        const extractedData = vuln['extracted-results']?.join('; ') || '';
+
+        return [
+          vuln['template-id'] || '',
+          vuln.info?.name || '',
+          vuln.info?.severity || '',
+          vuln['matched-at'] || vuln.host || '',
+          extractedData,
+          new Date(result.start_time).toLocaleString('zh-CN')
+        ];
+      });
+
+      // 构建 CSV 内容
+      const csvContent = [
+        headers.join(','),
+        ...rows.map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+      ].join('\n');
+
+      // 使用保存对话框
+      const defaultFilename = `扫描结果_${result.task_name}_${new Date().getTime()}.csv`;
+      const savedPath = await SaveCSVFile(defaultFilename, csvContent);
+
+      message.success(`导出成功: ${savedPath}`);
+    } catch (error: any) {
+      console.error('导出失败:', error);
+      if (error.message && error.message.includes('用户取消')) {
+        // 用户取消，不显示错误
+        return;
+      }
+      message.error(`导出失败: ${error.message || error}`);
+    }
+  };
+
+  // 导出所有结果为 CSV
+  const handleExportAllCSV = async () => {
+    try {
+      if (results.length === 0) {
+        message.warning('暂无扫描结果，无需导出');
+        return;
+      }
+
+      const allVulns = results.flatMap(result => result.vulnerabilities || []);
+
+      if (allVulns.length === 0) {
+        message.warning('所有任务均未发现漏洞，无需导出');
+        return;
+      }
+
+      // CSV 表头
+      const headers = ['任务名称', '模板ID', '模板名称', '严重程度', '目标URL', '提取数据', '扫描时间'];
+
+      // CSV 数据行
+      const rows: string[][] = [];
+      results.forEach(result => {
+        (result.vulnerabilities || []).forEach((vuln: NucleiResult) => {
+          const extractedData = vuln['extracted-results']?.join('; ') || '';
+
+          rows.push([
+            result.task_name || '',
+            vuln['template-id'] || '',
+            vuln.info?.name || '',
+            vuln.info?.severity || '',
+            vuln['matched-at'] || vuln.host || '',
+            extractedData,
+            new Date(result.start_time).toLocaleString('zh-CN')
+          ]);
+        });
+      });
+
+      // 构建 CSV 内容
+      const csvContent = [
+        headers.join(','),
+        ...rows.map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+      ].join('\n');
+
+      // 使用保存对话框
+      const defaultFilename = `所有扫描结果_${new Date().getTime()}.csv`;
+      const savedPath = await SaveCSVFile(defaultFilename, csvContent);
+
+      message.success(`导出成功: ${savedPath}，共 ${rows.length} 条漏洞记录`);
+    } catch (error: any) {
+      console.error('导出失败:', error);
+      if (error.message && error.message.includes('用户取消')) {
+        // 用户取消，不显示错误
+        return;
+      }
+      message.error(`导出失败: ${error.message || error}`);
+    }
+  };
+
+  // Handle POC editor open
+  const handleEditPOC = (vuln: NucleiResult) => {
+    setSelectedPOC({
+      templateId: vuln['template-id'],
+      templatePath: vuln['template-path'],
+      target: vuln.host || vuln['matched-at'] || '',
+    });
+    setPocEditorVisible(true);
+  };
+
+  // Handle POC editor close
+  const handleClosePOCEditor = () => {
+    setPocEditorVisible(false);
+    setSelectedPOC(null);
   };
 
   // Format duration to show seconds with 2 decimal places
@@ -195,16 +326,27 @@ const Results = () => {
     {
       title: '操作',
       key: 'actions',
-      width: 80,
+      width: 150,
       render: (_: any, record: TaskResult) => (
-        <Button
-          type="link"
-          icon={<EyeOutlined />}
-          onClick={() => handleViewDetails(record)}
-          style={{ fontSize: 12, padding: '4px 8px' }}
-        >
-          详情
-        </Button>
+        <Space size="small">
+          <Button
+            type="link"
+            icon={<EyeOutlined />}
+            onClick={() => handleViewDetails(record)}
+            style={{ fontSize: 12, padding: '4px 8px' }}
+          >
+            详情
+          </Button>
+          <Button
+            type="link"
+            icon={<DownloadOutlined />}
+            onClick={() => handleExportCSV(record)}
+            style={{ fontSize: 12, padding: '4px 8px' }}
+            disabled={!record.vulnerabilities || record.vulnerabilities.length === 0}
+          >
+            导出
+          </Button>
+        </Space>
       ),
     },
   ];
@@ -235,6 +377,13 @@ const Results = () => {
             <Option value="desc">最新</Option>
             <Option value="asc">最早</Option>
           </Select>
+          <Button
+            icon={<DownloadOutlined />}
+            onClick={handleExportAllCSV}
+            disabled={results.length === 0}
+          >
+            导出所有结果
+          </Button>
           <Button icon={<ReloadOutlined />} onClick={loadResults} loading={loading}>
             刷新
           </Button>
@@ -324,30 +473,131 @@ const Results = () => {
           <Space direction="vertical" style={{ width: '100%' }} size="large">
             {/* Summary Statistics */}
             <Row gutter={16}>
-              <Col span={8}>
+              <Col span={6}>
                 <Statistic
-                  title="总请求数"
-                  value={selectedResult.total_requests}
+                  title="HTTP请求数"
+                  value={selectedResult.http_requests || selectedResult.completed_requests}
                   prefix={<CheckCircleOutlined />}
+                  valueStyle={{ fontSize: 20 }}
                 />
               </Col>
-              <Col span={8}>
+              <Col span={6}>
                 <Statistic
                   title="发现漏洞"
                   value={selectedResult.found_vulns}
-                  valueStyle={{ color: selectedResult.found_vulns > 0 ? '#ff4d4f' : '#666' }}
+                  valueStyle={{ color: selectedResult.found_vulns > 0 ? '#ff4d4f' : '#666', fontSize: 20 }}
                   prefix={<BugOutlined />}
                 />
               </Col>
-              <Col span={8}>
+              <Col span={6}>
                 <Statistic
                   title="成功率"
                   value={selectedResult.success_rate}
                   precision={1}
                   suffix="%"
+                  valueStyle={{ fontSize: 20 }}
+                />
+              </Col>
+              <Col span={6}>
+                <Statistic
+                  title="总耗时"
+                  value={formatDuration(selectedResult.duration)}
+                  valueStyle={{ fontSize: 20 }}
+                  prefix={<ClockCircleOutlined />}
                 />
               </Col>
             </Row>
+
+            {/* 模板扫描统计 */}
+            <Card
+              title={
+                <div style={{ textAlign: 'left' }}>
+                  <Text strong style={{ fontSize: 14 }}>模板扫描统计</Text>
+                </div>
+              }
+              size="small"
+              bodyStyle={{ padding: '12px' }}
+            >
+              <Row gutter={16}>
+                <Col span={6}>
+                  <Statistic
+                    title="选择的POC"
+                    value={selectedResult.template_count}
+                    valueStyle={{ fontSize: 16 }}
+                  />
+                </Col>
+                <Col span={6}>
+                  <Statistic
+                    title="实际扫描"
+                    value={selectedResult.scanned_templates || 0}
+                    valueStyle={{ fontSize: 16, color: '#52c41a' }}
+                  />
+                </Col>
+                <Col span={6}>
+                  <Statistic
+                    title="被过滤"
+                    value={selectedResult.filtered_templates || 0}
+                    valueStyle={{ fontSize: 16, color: '#faad14' }}
+                  />
+                </Col>
+                <Col span={6}>
+                  <Statistic
+                    title="被跳过"
+                    value={selectedResult.skipped_templates || 0}
+                    valueStyle={{ fontSize: 16, color: '#999' }}
+                  />
+                </Col>
+              </Row>
+
+              {/* 友好提示信息 */}
+              {selectedResult.filtered_templates && selectedResult.filtered_templates > 0 && (
+                <div style={{ marginTop: 12, padding: '8px 12px', backgroundColor: '#fffbe6', borderRadius: 4, border: '1px solid #ffe58f' }}>
+                  <Text type="warning" style={{ fontSize: 12 }}>
+                    ⚠️ <strong>{selectedResult.filtered_templates}</strong> 个POC被Nuclei过滤（通常是因为需要code执行、headless浏览器等特殊环境）
+                  </Text>
+                  {selectedResult.filtered_template_ids && selectedResult.filtered_template_ids.length > 0 && (
+                    <div style={{ marginTop: 6 }}>
+                      <Text type="secondary" style={{ fontSize: 11 }}>
+                        被过滤的POC: {selectedResult.filtered_template_ids.slice(0, 5).join(', ')}
+                        {selectedResult.filtered_template_ids.length > 5 && ` 等${selectedResult.filtered_template_ids.length}个`}
+                      </Text>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {selectedResult.skipped_templates && selectedResult.skipped_templates > 0 && (
+                <div style={{ marginTop: 8, padding: '8px 12px', backgroundColor: '#f5f5f5', borderRadius: 4, border: '1px solid #d9d9d9' }}>
+                  <Text type="secondary" style={{ fontSize: 12 }}>
+                    ℹ️ <strong>{selectedResult.skipped_templates}</strong> 个POC被跳过（目标不符合扫描条件，如协议不匹配、端口不开放等）
+                  </Text>
+                  {selectedResult.skipped_template_ids && selectedResult.skipped_template_ids.length > 0 && (
+                    <div style={{ marginTop: 6 }}>
+                      <Text type="secondary" style={{ fontSize: 11 }}>
+                        被跳过的POC: {selectedResult.skipped_template_ids.slice(0, 5).join(', ')}
+                        {selectedResult.skipped_template_ids.length > 5 && ` 等${selectedResult.skipped_template_ids.length}个`}
+                      </Text>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {selectedResult.failed_templates && selectedResult.failed_templates > 0 && (
+                <div style={{ marginTop: 8, padding: '8px 12px', backgroundColor: '#fff2f0', borderRadius: 4, border: '1px solid #ffccc7' }}>
+                  <Text type="danger" style={{ fontSize: 12 }}>
+                    ❌ <strong>{selectedResult.failed_templates}</strong> 个POC扫描失败（可能是网络错误、超时等原因）
+                  </Text>
+                  {selectedResult.failed_template_ids && selectedResult.failed_template_ids.length > 0 && (
+                    <div style={{ marginTop: 6 }}>
+                      <Text type="secondary" style={{ fontSize: 11 }}>
+                        失败的POC: {selectedResult.failed_template_ids.slice(0, 5).join(', ')}
+                        {selectedResult.failed_template_ids.length > 5 && ` 等${selectedResult.failed_template_ids.length}个`}
+                      </Text>
+                    </div>
+                  )}
+                </div>
+              )}
+            </Card>
 
             {/* Task Info */}
             <Card 
@@ -427,6 +677,16 @@ const Results = () => {
                       }
                     >
                       <Space direction="vertical" style={{ width: '100%' }} size="middle">
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
+                          <Button
+                            type="primary"
+                            size="small"
+                            icon={<EditOutlined />}
+                            onClick={() => handleEditPOC(vuln)}
+                          >
+                            编辑 POC
+                          </Button>
+                        </div>
                         <Descriptions column={2} size="small" bordered>
                           <Descriptions.Item label="模板 ID" span={2}>
                             <Text code>{vuln['template-id']}</Text>
@@ -546,6 +806,17 @@ const Results = () => {
           </Space>
         )}
       </Drawer>
+
+      {/* POC Editor Modal */}
+      {selectedPOC && (
+        <POCEditor
+          visible={pocEditorVisible}
+          onClose={handleClosePOCEditor}
+          templateId={selectedPOC.templateId}
+          templatePath={selectedPOC.templatePath}
+          defaultTarget={selectedPOC.target}
+        />
+      )}
       </div>
     </div>
   );
